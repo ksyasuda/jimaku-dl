@@ -1,6 +1,6 @@
 # Jimaku Downloader
 
-A Python package to download japanese subtitles for anime from Jimaku.cc
+A Python package to automate download japanese subtitles for anime from [jimaku.cc](https://jimaku.cc/)
 
 ## Features
 
@@ -76,7 +76,7 @@ print(f"Downloaded {len/downloaded_files)} subtitle files")
 - Python 3.8 or higher
 - `fzf` command-line utility for interactive selection
 - `mpv` (optional, for playback functionality)
-- A valid Jimaku.cc API token
+- A valid [jimaku.cc](https://jimaku.cc/) API token
 
 ## License
 
