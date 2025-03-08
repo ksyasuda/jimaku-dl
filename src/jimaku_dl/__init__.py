@@ -5,7 +5,7 @@ This package provides functionality to search for, select, and download
 subtitles for anime media files or directories.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 from .downloader import JimakuDownloader
 
