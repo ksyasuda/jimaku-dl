@@ -1,4 +1,4 @@
-# Jimaku Downloader
+# Jimaku Subtitle Downloader
 
 A Python package to automate download japanese subtitles for anime from [jimaku.cc](https://jimaku.cc/)
 
@@ -8,17 +8,28 @@ A Python package to automate download japanese subtitles for anime from [jimaku.
 - Supports both individual files and directories
 - Interactive subtitle selection using fzf
 - Auto-detects anime from filenames with season and episode numbers
-- Recursively checks parent directories for anime titles
 - Optional MPV playback with downloaded subtitles
 - Caches AniList IDs to reduce API calls
 
 ## Installation
 
-```bash
-# From PyPI
-pip install jimaku-dl
+### PIP
 
-# From source
+```bash
+pip install jimaku-dl
+```
+
+### Arch Linux
+
+```bash
+paru -S python-jimaku-dl
+# or
+yay -S python-jimaku-dl
+```
+
+### From source
+
+```bash
 git clone https://github.com/ksyasuda/jimaku-dl.git
 cd jimaku-dl
 pip install -e .
@@ -27,6 +38,8 @@ pip install -e .
 ## Usage
 
 ### Command Line
+
+````bash
 
 ```bash
 # Download subtitles for a video file
@@ -43,17 +56,9 @@ jimaku-dl /path/to/your/anime.mkv --play
 
 # Set API token via command line
 jimaku-dl /path/to/your/anime.mkv --api-token YOUR_TOKEN
-```
+````
 
-### Environment Variables
-
-You can set your Jimaku API token using the `JIMAKU_API_TOKEN` environment variable:
-
-```bash
-export JIMAKU_API_TOKEN=your_api_token
-```
-
-### Python API
+### Python Class
 
 ```python
 from jimaku_downloader import JimakuDownloader
@@ -69,6 +74,14 @@ downloaded_files = downloader.download_subtitles(
 )
 
 print(f"Downloaded {len/downloaded_files)} subtitle files")
+```
+
+#### Environment Variables
+
+You can set your Jimaku API token using the `JIMAKU_API_TOKEN` environment variable:
+
+```bash
+export JIMAKU_API_TOKEN=your_api_token
 ```
 
 ## Requirements
