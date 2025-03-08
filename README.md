@@ -39,8 +39,6 @@ pip install -e .
 
 ### Command Line
 
-````bash
-
 ```bash
 # Download subtitles for a video file
 jimaku-dl /path/to/your/anime.S01E02.mkv
@@ -56,7 +54,7 @@ jimaku-dl /path/to/your/anime.mkv --play
 
 # Set API token via command line
 jimaku-dl /path/to/your/anime.mkv --api-token YOUR_TOKEN
-````
+```
 
 ### Python Class
 
