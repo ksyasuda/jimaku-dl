@@ -1,4 +1,4 @@
-name: Create Release
+name: Create Release and Publish
 
 on:
   workflow_dispatch:
@@ -15,17 +15,20 @@ on:
       custom_version:
         description: "Custom version (if specified, ignores version_bump)"
         required: false
-
-  # Optional: Uncomment to enable automatic releases on specific tags/patterns
-  # push:
-  #   tags:
-  #     - 'v*.*.*'
-
+      skip_publish:
+        description: "Skip publishing to PyPI"
+        required: false
+        default: false
+        type: boolean
+  push:
+    tags:
+      - "v*.*.*"
 jobs:
   create-release:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      packages: write
 
     steps:
       - name: Check out code
@@ -61,20 +64,17 @@ jobs:
             CURRENT="${{ env.CURRENT_VERSION }}"
             
             if [ "$BUMP_TYPE" = "patch" ]; then
-              # Parse version and increment patch
               MAJOR=$(echo $CURRENT | cut -d. -f1)
               MINOR=$(echo $CURRENT | cut -d. -f2)
               PATCH=$(echo $CURRENT | cut -d. -f3)
               NEW_PATCH=$((PATCH + 1))
               NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
             elif [ "$BUMP_TYPE" = "minor" ]; then
-              # Parse version, increment minor and reset patch
               MAJOR=$(echo $CURRENT | cut -d. -f1)
               MINOR=$(echo $CURRENT | cut -d. -f2)
               NEW_MINOR=$((MINOR + 1))
               NEW_VERSION="$MAJOR.$NEW_MINOR.0"
             elif [ "$BUMP_TYPE" = "major" ]; then
-              # Parse version, increment major and reset minor and patch
               MAJOR=$(echo $CURRENT | cut -d. -f1)
               NEW_MAJOR=$((MAJOR + 1))
               NEW_VERSION="$NEW_MAJOR.0.0"
@@ -89,10 +89,8 @@ jobs:
 
       - name: Update version in files
         run: |
-          # Update version in __init__.py
           sed -i "s/__version__ = \"${{ env.CURRENT_VERSION }}\"/__version__ = \"${{ env.NEW_VERSION }}\"/g" src/jimaku_dl/__init__.py
 
-          # Update version in setup.cfg
           sed -i "s/version = ${{ env.CURRENT_VERSION }}/version = ${{ env.NEW_VERSION }}/g" setup.cfg
 
           echo "Updated version to ${{ env.NEW_VERSION }} in code files"
@@ -100,7 +98,6 @@ jobs:
       - name: Generate changelog
         id: changelog
         run: |
-          # Get the previous tag or use a default if none exists
           PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
 
           if [ -z "$PREV_TAG" ]; then
@@ -109,12 +106,10 @@ jobs:
             CHANGELOG=$(git log $PREV_TAG..HEAD --pretty=format:"* %s (%h)" --no-merges)
           fi
 
-          # Ensure changelog has content or provide default message
           if [ -z "$CHANGELOG" ]; then
             CHANGELOG="* Bug fixes and improvements"
           fi
 
-          # Escape newlines for GITHUB_OUTPUT compatibility
           echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
           echo "$CHANGELOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -129,6 +124,7 @@ jobs:
           git push --follow-tags
 
       - name: Create GitHub Release
+        id: create_release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: "v${{ env.NEW_VERSION }}"
@@ -140,3 +136,18 @@ jobs:
           draft: false
           prerelease: false
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build package
+        if: ${{ !inputs.skip_publish }}
+        run: |
+          python -m pip install --upgrade pip
+          pip install build
+          python -m build
+
+      - name: Publish package to PyPI
+        if: ${{ !inputs.skip_publish }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          skip_existing: true
