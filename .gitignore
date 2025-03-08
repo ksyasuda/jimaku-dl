@@ -1,0 +1,5 @@
+.mypy_cache
+.git
+dist
+src/jimaku_dl.egg-info
+src/jimaku_dl/__pycache__
