@@ -1,0 +1,57 @@
+name: Publish to PyPI
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      skip_release_check:
+        description: "Skip release check (use current version in files)"
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine
+          pip install -e .
+
+      - name: Verify version matches release tag
+        if: github.event_name == 'release' && !inputs.skip_release_check
+        run: |
+          # Extract version from tag (removing 'v' prefix if present)
+          TAG_VERSION=${GITHUB_REF#refs/tags/}
+          TAG_VERSION=${TAG_VERSION#v}
+
+          CODE_VERSION=$(grep -E "__version__\s*=\s*['\"]([^'\"]+)['\"]" src/jimaku_dl/__init__.py | cut -d'"' -f2)
+
+          echo "Tag version: $TAG_VERSION"
+          echo "Code version: $CODE_VERSION"
+
+          if [ "$TAG_VERSION" != "$CODE_VERSION" ]; then
+            echo "Error: Version mismatch between tag ($TAG_VERSION) and code ($CODE_VERSION)"
+            exit 1
+          fi
+
+          echo "Version verified: $CODE_VERSION"
+
+      - name: Build package
+        run: python -m build
+
+      - name: Publish package to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}

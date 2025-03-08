@@ -1,0 +1,142 @@
+name: Create Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: "Type of version bump"
+        required: true
+        default: "patch"
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      custom_version:
+        description: "Custom version (if specified, ignores version_bump)"
+        required: false
+
+  # Optional: Uncomment to enable automatic releases on specific tags/patterns
+  # push:
+  #   tags:
+  #     - 'v*.*.*'
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install setuptools wheel semver
+
+      - name: Determine current version
+        id: current_version
+        run: |
+          CURRENT_VERSION=$(grep -E "__version__\s*=\s*['\"]([^'\"]+)['\"]" src/jimaku_dl/__init__.py | cut -d'"' -f2)
+          echo "Current version: $CURRENT_VERSION"
+          echo "CURRENT_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
+
+      - name: Calculate new version
+        id: new_version
+        run: |
+          if [ -n "${{ github.event.inputs.custom_version }}" ]; then
+            NEW_VERSION="${{ github.event.inputs.custom_version }}"
+            echo "Using custom version: $NEW_VERSION"
+          else
+            BUMP_TYPE="${{ github.event.inputs.version_bump }}"
+            CURRENT="${{ env.CURRENT_VERSION }}"
+            
+            if [ "$BUMP_TYPE" = "patch" ]; then
+              # Parse version and increment patch
+              MAJOR=$(echo $CURRENT | cut -d. -f1)
+              MINOR=$(echo $CURRENT | cut -d. -f2)
+              PATCH=$(echo $CURRENT | cut -d. -f3)
+              NEW_PATCH=$((PATCH + 1))
+              NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
+            elif [ "$BUMP_TYPE" = "minor" ]; then
+              # Parse version, increment minor and reset patch
+              MAJOR=$(echo $CURRENT | cut -d. -f1)
+              MINOR=$(echo $CURRENT | cut -d. -f2)
+              NEW_MINOR=$((MINOR + 1))
+              NEW_VERSION="$MAJOR.$NEW_MINOR.0"
+            elif [ "$BUMP_TYPE" = "major" ]; then
+              # Parse version, increment major and reset minor and patch
+              MAJOR=$(echo $CURRENT | cut -d. -f1)
+              NEW_MAJOR=$((MAJOR + 1))
+              NEW_VERSION="$NEW_MAJOR.0.0"
+            else
+              echo "Invalid bump type: $BUMP_TYPE"
+              exit 1
+            fi
+            echo "Bumping $BUMP_TYPE version: $CURRENT → $NEW_VERSION"
+          fi
+
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+
+      - name: Update version in files
+        run: |
+          # Update version in __init__.py
+          sed -i "s/__version__ = \"${{ env.CURRENT_VERSION }}\"/__version__ = \"${{ env.NEW_VERSION }}\"/g" src/jimaku_dl/__init__.py
+
+          # Update version in setup.cfg
+          sed -i "s/version = ${{ env.CURRENT_VERSION }}/version = ${{ env.NEW_VERSION }}/g" setup.cfg
+
+          echo "Updated version to ${{ env.NEW_VERSION }} in code files"
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get the previous tag or use a default if none exists
+          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+          if [ -z "$PREV_TAG" ]; then
+            CHANGELOG=$(git log --pretty=format:"* %s (%h)" --no-merges)
+          else
+            CHANGELOG=$(git log $PREV_TAG..HEAD --pretty=format:"* %s (%h)" --no-merges)
+          fi
+
+          # Ensure changelog has content or provide default message
+          if [ -z "$CHANGELOG" ]; then
+            CHANGELOG="* Bug fixes and improvements"
+          fi
+
+          # Escape newlines for GITHUB_OUTPUT compatibility
+          echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Commit version changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add src/jimaku_dl/__init__.py setup.cfg
+          git commit -m "Bump version to ${{ env.NEW_VERSION }}"
+          git tag -a "v${{ env.NEW_VERSION }}" -m "Release v${{ env.NEW_VERSION }}"
+          git push --follow-tags
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: "v${{ env.NEW_VERSION }}"
+          name: "Release v${{ env.NEW_VERSION }}"
+          body: |
+            ## Changes in this release
+
+            ${{ steps.changelog.outputs.CHANGELOG }}
+          draft: false
+          prerelease: false
+          token: ${{ secrets.GITHUB_TOKEN }}
