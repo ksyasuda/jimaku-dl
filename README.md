@@ -6,8 +6,9 @@
 
 <div align="center">
   <p>
-    <h3>Showcase</h3>
-    <video controls muted src=".assets/showcase.mp4"></video>
+    <h3></h3>
+    <video controls muted src="https://github.com/user-attachments/assets/544a9204-ceb4-4c9c-b91d-3719d2a037e7
+"></video>
   </p>
 </div>
 
