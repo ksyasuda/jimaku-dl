@@ -4,6 +4,13 @@
     A tool for downloading Japanese subtitles for anime from <a href="https://jimaku.cc" target="_blank" rel="noopener noreferrer">Jimaku</a>
 </div>
 
+<div align="center">
+  <p>
+    <h3>Showcase</h3>
+    <video controls muted src=".assets/showcase.mp4"></video>
+  </p>
+</div>
+
 ## Features
 
 - Query AniList for anime titles
