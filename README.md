@@ -120,6 +120,7 @@ To contribute to Jimaku Downloader, follow these steps:
 3. Install the dependencies:
 
    ```sh
+   pip install -r requirements.txt
    pip install -r requirements_dev.txt
    ```
 
