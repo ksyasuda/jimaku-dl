@@ -55,7 +55,7 @@ jobs:
 
       - name: Test with pytest
         run: |
-          pytest --cov-branch --cov=jimaku_dl --cov-report=xmlA
+          pytest --cov-branch --cov=jimaku_dl --cov-report=xml
           pytest --cov --junitxml=junit.xml -o junit_family=legacy
 
       - name: Upload coverage to Codecov
