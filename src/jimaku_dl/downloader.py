@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from logging import Logger, basicConfig, getLogger
 from os import environ
-from os.path import abspath, basename, dirname, exists, isdir, join, normpath, splitext
+from os.path import abspath, basename, dirname, exists, isdir, join, normpath
 from re import IGNORECASE
 from re import compile as re_compile
 from re import search, sub
@@ -25,14 +25,17 @@ class JimakuDownloader:
     JIMAKU_SEARCH_URL = "https://jimaku.cc/api/entries/search"
     JIMAKU_FILES_BASE = "https://jimaku.cc/api/entries"
 
-    def __init__(self, api_token: Optional[str] = None, log_level: str = "INFO"):
+    def __init__(
+        self, api_token: Optional[str] = None, log_level: str = "INFO"
+    ):
         """
-        Initialize the JimakuDownloader with API token and logging configuration.
+        Initialize the JimakuDownloader with API token and logging
 
         Parameters
         ----------
         api_token : str, optional
-            Jimaku API token for authentication. If None, will try to get from JIMAKU_API_TOKEN env var
+            Jimaku API token for authentication. If None, will try to get from
+            JIMAKU_API_TOKEN env var
         log_level : str, default="INFO"
             Logging level to use (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         """
@@ -41,7 +44,8 @@ class JimakuDownloader:
         self.api_token = api_token or environ.get("JIMAKU_API_TOKEN", "")
         if not self.api_token:
             self.logger.warning(
-                "No API token provided. Will need to be set before downloading."
+                "No API token provided. "
+                "Will need to be set before downloading."
             )
 
     def _setup_logging(self, log_level: str) -> Logger:
@@ -108,7 +112,7 @@ class JimakuDownloader:
         clean_filename = filename
 
         # Try Trash Guides anime naming schema first
-        # Format: {Series Title} - S{season:00}E{episode:00} - {Episode Title} [...]
+        # Format: {Series Title} - S{season:00}E{episode:00} - {Episode Title}
         trash_guide_match = search(
             r"(.+?)(?:\(\d{4}\))?\s*-\s*[Ss](\d+)[Ee](\d+)\s*-\s*.+",
             basename(clean_filename),
@@ -118,7 +122,10 @@ class JimakuDownloader:
             season = int(trash_guide_match.group(2))
             episode = int(trash_guide_match.group(3))
             self.logger.debug(
-                f"Parsed using Trash Guides format: {title=}, {season=}, {episode=}"
+                "Parsed using Trash Guides format: %s, %s, %s",
+                f"{title=}",
+                f"{season=}",
+                f"{episode=}",
             )
             return title, season, episode
 
@@ -134,25 +141,31 @@ class JimakuDownloader:
                 title = parts[-3]
 
                 # Try to get episode number from filename
+                pattern = r"[Ss](\d+)[Ee](\d+)|[Ee](?:pisode)"
+                pattern += r"?\s*(\d+)|(?:^|\s|[._-])(\d+)(?:\s|$|[._-])"
                 ep_match = search(
-                    r"[Ss](\d+)[Ee](\d+)|[Ee](?:pisode)?\s*(\d+)|(?:^|\s|[._-])(\d+)(?:\s|$|[._-])",
+                    pattern,
                     parts[-1],
                 )
                 if ep_match:
-                    # Find the first non-None group which contains the episode number
                     episode_groups = ep_match.groups()
                     episode_str = next(
                         (g for g in episode_groups if g is not None), "1"
                     )
-                    # If we found S01E01 format, use the episode part (second group)
-                    if ep_match.group(1) is not None and ep_match.group(2) is not None:
+                    if (
+                        ep_match.group(1) is not None
+                        and ep_match.group(2) is not None
+                    ):
                         episode_str = ep_match.group(2)
                     episode = int(episode_str)
                 else:
                     episode = 1
 
                 self.logger.debug(
-                    f"Parsed from Trash Guides directory structure: {title=}, {season=}, {episode=}"
+                    "Parsed from Trash Guides directory structure: %s, %s, %s",
+                    f"{title=}",
+                    f"{season=}",
+                    f"{episode=}",
                 )
                 return title, season, episode
 
@@ -163,7 +176,10 @@ class JimakuDownloader:
             season = int(match.group(2))
             episode = int(match.group(3))
             self.logger.debug(
-                f"Parsed using S01E01 format: {title=}, {season=}, {episode=}"
+                "Parsed using S01E01 format: %s, %s, %s",
+                f"{title=}",
+                f"{season=}",
+                f"{episode}",
             )
             return title, season, episode
 
@@ -173,22 +189,31 @@ class JimakuDownloader:
             # Check if the parent directory contains "Season" in the name
             season_dir = parts[-2]
             if "season" in season_dir.lower():
-                season_match = search(r"season[. _-]*(\d+)", season_dir.lower())
+                srch = r"season[. _-]*(\d+)"
+                season_match = search(srch, season_dir.lower())
                 if season_match:
                     season = int(season_match.group(1))
                     # The show name is likely 2 directories up
                     title = parts[-3].replace(".", " ").strip()
                     # Try to find episode number in the filename
                     ep_match = search(
-                        r"[Ee](?:pisode)?[. _-]*(\d+)|[. _-](\d+)[. _-]", parts[-1]
+                        r"[Ee](?:pisode)?[. _-]*(\d+)|[. _-](\d+)[. _-]",
+                        parts[-1],
                     )
                     episode = int(
                         ep_match.group(1)
                         if ep_match and ep_match.group(1)
-                        else ep_match.group(2) if ep_match and ep_match.group(2) else 1
+                        else (
+                            ep_match.group(2)
+                            if ep_match and ep_match.group(2)
+                            else 1
+                        )
                     )
                     self.logger.debug(
-                        f"Parsed from directory structure: {title=}, {season=}, {episode=}"
+                        "Parsed from directory structure: %s, %s, %s",
+                        f"{title=}",
+                        f"{season=}",
+                        f"{episode=}",
                     )
                     return title, season, episode
 
@@ -200,14 +225,18 @@ class JimakuDownloader:
         """
         self.logger.warning("Could not parse filename automatically.")
         print(f"\nFilename: {filename}")
-        print("Could not automatically determine anime title and episode information.")
+        print("Could not determine anime title and episode information.")
         title = input("Please enter the anime title: ").strip()
         try:
             season = int(
-                input("Enter season number (or 0 if not applicable): ").strip() or "1"
+                input("Enter season number (or 0 if not applicable): ").strip()
+                or "1"
             )
             episode = int(
-                input("Enter episode number (or 0 if not applicable): ").strip() or "1"
+                input(
+                    "Enter episode number " + "(or 0 if not applicable): "
+                ).strip()
+                or "1"
             )
         except ValueError:
             self.logger.error("Invalid input.")
@@ -235,7 +264,7 @@ class JimakuDownloader:
         title = basename(dirname.rstrip("/"))
 
         if not title or title in [".", "..", "/"]:
-            self.logger.debug(f"Directory name '{title}' is not usable")
+            self.logger.debug("Directory name '%s' is not usable", title)
             return False, "", 1, 0
 
         common_dirs = [
@@ -252,7 +281,8 @@ class JimakuDownloader:
         ]
         if title.lower() in common_dirs:
             self.logger.debug(
-                f"Directory name '{title}' is a common system directory, skipping"
+                "Directory name '%s' is a common system directory, skipping",
+                title,
             )
             return False, "", 1, 0
 
@@ -270,7 +300,7 @@ class JimakuDownloader:
 
     def find_anime_title_in_path(self, path: str) -> Tuple[str, int, int]:
         """
-        Recursively search for an anime title in the path, trying parent directories
+        Recursively search for an anime title in the path
         if necessary.
 
         Parameters
@@ -281,7 +311,7 @@ class JimakuDownloader:
         Returns
         -------
         tuple
-            (title, season, episode) - anime title and defaults for season and episode
+            (title, season, episode)
 
         Raises
         ------
@@ -295,10 +325,14 @@ class JimakuDownloader:
             success, title, season, episode = self.parse_directory_name(path)
 
             if success:
-                self.logger.debug(f"Found anime title '{title}' from directory: {path}")
+                self.logger.debug(
+                    "Found anime title '%s' from directory: %s", title, path
+                )
                 return title, season, episode
 
-            self.logger.debug(f"No anime title in '{path}', trying parent directory")
+            self.logger.debug(
+                f"No anime title in '{path}', trying parent directory"
+            )
             parent_path = dirname(path)
 
             if parent_path == path:
@@ -307,14 +341,19 @@ class JimakuDownloader:
             path = parent_path
 
         self.logger.error(
-            f"Could not extract anime title from directory path: {original_path}"
+            "Could not extract anime title from path: %s", original_path
         )
-        self.logger.error("Please specify a directory with a recognizable anime name")
-        raise ValueError(f"Could not find anime title in path: {original_path}")
+        self.logger.error(
+            "Please specify a directory with a recognizable anime name"
+        )
+        raise ValueError(
+            "Could not find anime title in path: " + f"{original_path}"
+        )
 
     def load_cached_anilist_id(self, directory: str) -> Optional[int]:
         """
-        Look for a file named '.anilist.id' in the given directory and return the AniList ID.
+        Look for a file named '.anilist.id' in the given directory
+        and return the AniList ID.
 
         Parameters
         ----------
@@ -338,7 +377,7 @@ class JimakuDownloader:
 
     def save_anilist_id(self, directory: str, anilist_id: int) -> None:
         """
-        Save the AniList ID to a file named '.anilist.id' in the given directory.
+        Save the AniList ID to '.anilist.id' in the given directory
 
         Parameters
         ----------
@@ -360,7 +399,7 @@ class JimakuDownloader:
 
     def query_anilist(self, title: str, season: Optional[int] = None) -> int:
         """
-        Query AniList's GraphQL API for the given title and return its media ID.
+        Query AniList's GraphQL API for the given title and return its ID.
 
         Parameters
         ----------
@@ -400,15 +439,14 @@ class JimakuDownloader:
         if season and season > 1:
             cleaned_title += f" - Season {season}"
 
-        variables = {
-            "search": cleaned_title
-        }
+        variables = {"search": cleaned_title}
 
         try:
             self.logger.debug("Querying AniList API for title: %s", title)
             self.logger.debug(f"Query variables: {variables}")
             response = requests_post(
-                self.ANILIST_API_URL, json={"query": query, "variables": variables}
+                self.ANILIST_API_URL,
+                json={"query": query, "variables": variables},
             )
             response.raise_for_status()
             data = response.json()
@@ -423,7 +461,9 @@ class JimakuDownloader:
             self.logger.error(
                 f"AniList search failed for title: {title}, season: {season}"
             )
-            raise ValueError(f"Could not find anime on AniList for title: {title}")
+            raise ValueError(
+                f"Could not find anime on AniList for title: {title}"
+            )
 
         except Exception as e:
             self.logger.error(f"Error querying AniList: {e}")
@@ -436,7 +476,8 @@ class JimakuDownloader:
         print(f"\nPlease find the AniList ID for: {title}")
         print("Visit https://anilist.co and search for your anime.")
         print(
-            "The ID is the number in the URL, e.g., https://anilist.co/anime/12345 -> ID is 12345"
+            "The ID is the number in the URL, "
+            + "e.g., https://anilist.co/anime/12345 -> ID is 12345"
         )
 
         while True:
@@ -478,7 +519,9 @@ class JimakuDownloader:
             "Content-Type": "application/json",
         }
         try:
-            self.logger.debug(f"Querying Jimaku entries for AniList ID: {anilist_id}")
+            self.logger.debug(
+                f"Querying Jimaku entries for AniList ID: {anilist_id}"
+            )
             response = requests_get(
                 self.JIMAKU_SEARCH_URL, params=params, headers=headers
             )
@@ -486,7 +529,9 @@ class JimakuDownloader:
             results = response.json()
             self.logger.debug(f"Jimaku search response: {results}")
             if not results:
-                self.logger.error("No subtitle entries found on Jimaku for this media.")
+                self.logger.error(
+                    "No subtitle entries found on Jimaku for this media."
+                )
                 raise ValueError(
                     f"No subtitle entries found for AniList ID: {anilist_id}"
                 )
@@ -495,7 +540,9 @@ class JimakuDownloader:
             self.logger.error(f"Error querying Jimaku API: {e}")
             raise ValueError(f"Error querying Jimaku API: {str(e)}")
 
-    def get_entry_files(self, entry_id: Union[str, int]) -> List[Dict[str, Any]]:
+    def get_entry_files(
+        self, entry_id: Union[str, int]
+    ) -> List[Dict[str, Any]]:
         """
         Retrieve file information for a given entry ID.
 
@@ -537,14 +584,14 @@ class JimakuDownloader:
                 raise ValueError(f"No files found for entry ID: {entry_id}")
             return files
         except Exception as e:
-            self.logger.error(f"Error querying files for entry {entry_id}: {e}")
+            self.logger.error(f"Error getting files for entry {entry_id}: {e}")
             raise ValueError(f"Error retrieving files: {str(e)}")
 
     def filter_files_by_episode(
         self, files: List[Dict[str, Any]], target_episode: int
     ) -> List[Dict[str, Any]]:
         """
-        Filter subtitle files to only include those matching the target episode.
+        Filter subtitle files to only include ones matching the target episode.
 
         Parameters
         ----------
@@ -556,7 +603,7 @@ class JimakuDownloader:
         Returns
         -------
         list
-            Filtered list of file info dictionaries matching the target episode,
+            Filtered list of file info dicts matching the target episode,
             or all files if no matches are found
         """
         specific_matches = []
@@ -568,7 +615,6 @@ class JimakuDownloader:
 
         all_episodes_keywords = ["all", "batch", "complete", "season", "full"]
         batch_files = []
-        has_specific_match = False
 
         # First pass: find exact episode matches
         for file_info in files:
@@ -584,10 +630,11 @@ class JimakuDownloader:
                         if file_episode == target_episode:
                             specific_matches.append(file_info)
                             self.logger.debug(
-                                f"Matched episode {target_episode} in: {filename}"
+                                "Matched episode %s in: %s",
+                                target_episode,
+                                filename,
                             )
                             matched = True
-                            has_specific_match = True
                             break
                     except (ValueError, TypeError):
                         continue
@@ -609,14 +656,15 @@ class JimakuDownloader:
         if filtered_files:
             total_specific = len(specific_matches)
             total_batch = len(batch_files)
-            self.logger.info(
-                f"Found {len(filtered_files)} files matching episode {target_episode} "
-                f"({total_specific} specific matches, {total_batch} batch files)"
-            )
+            msg = f"Found {len(filtered_files)} "
+            msg += f"matches for episode {target_episode} "
+            msg += f"({total_specific} specific matches, "
+            msg += f"{total_batch} batch files)"
+            self.logger.debug(msg)
             return filtered_files
         else:
             self.logger.warning(
-                f"No files matched episode {target_episode}, showing all options"
+                f"No files matched ep {target_episode}, showing all options"
             )
             return files
 
@@ -637,7 +685,7 @@ class JimakuDownloader:
         -------
         str or list or None
             If multi=False: Selected option string or None if cancelled
-            If multi=True: List of selected option strings or empty list if cancelled
+            If multi=True: List of selected option strings or empty list
         """
         try:
             fzf_args = ["fzf", "--height=40%", "--border"]
@@ -712,14 +760,14 @@ class JimakuDownloader:
         """
         Download subtitles for the given media path.
 
-        This is the main entry point method that orchestrates the entire download process.
+        This is the main entry point for the entire download process.
 
         Parameters
         ----------
         media_path : str
             Path to the media file or directory
         dest_dir : str, optional
-            Directory to save downloaded subtitles (default: same directory as media)
+            Directory to save subtitles (default: same directory as media)
         play : bool, default=False
             Whether to launch MPV with the subtitles after download
         anilist_id : int, optional
@@ -741,9 +789,9 @@ class JimakuDownloader:
         self.logger.info("Starting subtitle search and download process")
 
         is_directory = self.is_directory_input(media_path)
-        self.logger.info(
-            f"Processing {'directory' if is_directory else 'file'}: {media_path}"
-        )
+        msg = f"Processing {'directory' if is_directory else 'file'}: "
+        msg += f"{media_path}"
+        self.logger.info(msg)
 
         if dest_dir:
             dest_dir = dest_dir
@@ -760,7 +808,9 @@ class JimakuDownloader:
             media_dir = media_path
             media_file = None
             self.logger.debug(
-                f"Found anime title '{title}' but will save subtitles to: {dest_dir}"
+                "Found anime title '%s' but will save subtitles to: %s",
+                title,
+                dest_dir,
             )
         else:
             base_filename = basename(media_path)
@@ -781,19 +831,21 @@ class JimakuDownloader:
             self.logger.info(f"AniList ID for '{title}' is {anilist_id}")
             self.save_anilist_id(media_dir, anilist_id)
         else:
-            self.logger.info(
-                f"Using {'provided' if anilist_id else 'cached'} AniList ID: {anilist_id}"
-            )
+            msg = f"Using {'provided' if anilist_id else 'cached'} "
+            msg += f"AniList ID: {anilist_id}"
+            self.logger.info(msg)
 
         # Now check for API token before making Jimaku API calls
         if not self.api_token:
             self.logger.error(
                 "Jimaku API token is required to download subtitles. "
-                "Please set it with --token or the JIMAKU_API_TOKEN environment variable."
+                "Please set it with --token or the "
+                "JIMAKU_API_TOKEN environment variable."
             )
             raise ValueError(
                 "Jimaku API token is required to download subtitles. "
-                "Please set it with --token or the JIMAKU_API_TOKEN environment variable."
+                "Please set it with --token or the "
+                "JIMAKU_API_TOKEN environment variable."
             )
 
         self.logger.info("Querying Jimaku for subtitle entries...")
@@ -805,7 +857,8 @@ class JimakuDownloader:
         entry_options = []
         entry_mapping = {}
         for i, entry in enumerate(entries, start=1):
-            opt = f"{i}. {entry.get('english_name', 'No Eng Name')} - {entry.get('japanese_name', 'None')}"
+            opt = f"{i}. {entry.get('english_name', 'No Eng Name')} - "
+            opt += f"{entry.get('japanese_name', 'None')}"
             entry_options.append(opt)
             entry_mapping[opt] = entry
 
@@ -813,7 +866,10 @@ class JimakuDownloader:
 
         self.logger.info("Select a subtitle entry using fzf:")
         selected_entry_option = self.fzf_menu(entry_options, multi=False)
-        if not selected_entry_option or selected_entry_option not in entry_mapping:
+        if (
+            not selected_entry_option
+            or selected_entry_option not in entry_mapping
+        ):
             raise ValueError("No valid entry selected")
 
         selected_entry = entry_mapping[selected_entry_option]
@@ -838,7 +894,8 @@ class JimakuDownloader:
         file_options.sort()
 
         self.logger.info(
-            f"Select {'one or more' if is_directory else 'one'} subtitle file(s):"
+            f"Select {'one or more' if is_directory else 'one'} "
+            "subtitle file(s):"
         )
         selected_files = self.fzf_menu(file_options, multi=is_directory)
 
@@ -855,13 +912,16 @@ class JimakuDownloader:
         for opt in selected_files_list:
             file_info = file_mapping.get(opt)
             if not file_info:
-                self.logger.warning(f"Could not find mapping for selected file: {opt}")
+                self.logger.warning(
+                    f"Could not find mapping for selected file: {opt}"
+                )
                 continue
 
             download_url = file_info.get("url")
             if not download_url:
                 self.logger.warning(
-                    f"File option '{opt}' does not have a download URL. Skipping."
+                    f"File option '{opt}' does not have a download URL. "
+                    "Skipping."
                 )
                 continue
 
@@ -885,11 +945,13 @@ class JimakuDownloader:
                 subprocess_run(mpv_cmd)
             except FileNotFoundError:
                 self.logger.error(
-                    "MPV not found. Please install MPV and ensure it is in your PATH."
+                    "MPV not found. "
+                    "Please install MPV and ensure it is in your PATH."
                 )
         elif play and is_directory:
             self.logger.warning(
-                "Cannot play media with MPV when input is a directory. Skipping playback."
+                "Cannot play media with MPV when input is a directory. "
+                "Skipping playback."
             )
 
         self.logger.info("Subtitle download process completed successfully")
