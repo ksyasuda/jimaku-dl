@@ -3,3 +3,6 @@
 dist
 src/jimaku_dl.egg-info
 src/jimaku_dl/__pycache__
+tests/__pycache__/
+.pytest_cache
+.env

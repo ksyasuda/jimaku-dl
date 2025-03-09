@@ -1,94 +1,121 @@
-# Jimaku Subtitle Downloader
+# Jimaku Downloader
 
-A Python package to automate download japanese subtitles for anime from [jimaku.cc](https://jimaku.cc/)
+<div align="center">
+    A tool for downloading Japanese subtitles for anime from <a href="https://jimaku.cc" target="_blank" rel="noopener noreferrer">Jimaku</a>
+</div>
 
 ## Features
 
-- Search for subtitles using AniList IDs
-- Supports both individual files and directories
-- Interactive subtitle selection using fzf
-- Auto-detects anime from filenames with season and episode numbers
-- Optional MPV playback with downloaded subtitles
-- Caches AniList IDs to reduce API calls
+- Query AniList for anime titles
+- Select subtitle entries from Jimaku
+- Download subtitles to a specified directory
+- Launch MPV with the downloaded subtitles
+- Supports both file and directory inputs
+- Configurable logging levels
 
 ## Installation
 
-### PIP
+You can install Jimaku Downloader using pip:
 
-```bash
+```sh
 pip install jimaku-dl
 ```
 
 ### Arch Linux
 
-```bash
+Arch Linux users can install
+<a href="https://aur.archlinux.org/packages/python-jimaku-dl" target="_blank">python-jimaku-dl</a>
+from the AUR
+
+```sh
 paru -S python-jimaku-dl
 # or
 yay -S python-jimaku-dl
-```
 
-### From source
-
-```bash
-git clone https://github.com/ksyasuda/jimaku-dl.git
-cd jimaku-dl
-pip install -e .
 ```
 
 ## Usage
 
-### Command Line
+### Command Line Interface
 
-```bash
-# Download subtitles for a video file
-jimaku-dl /path/to/your/anime.S01E02.mkv
+The main entry point for Jimaku Downloader is the `jimaku-dl` command. Here are some examples of how to use it:
 
-# Download subtitles for an entire series (directory mode)
-jimaku-dl /path/to/your/anime/directory/
+```sh
+# Download subtitles for a single video file
+jimaku-dl /path/to/video.mkv
 
-# Specify a different destination directory
-jimaku-dl /path/to/your/anime.mkv --dest /path/to/subtitles/
+# Download subtitles for a directory
+jimaku-dl /path/to/anime/directory
 
-# Play the video with MPV after downloading subtitles
-jimaku-dl /path/to/your/anime.mkv --play
+# Specify a custom destination directory
+jimaku-dl /path/to/video.mkv --dest /custom/path
 
-# Set API token via command line
-jimaku-dl /path/to/your/anime.mkv --api-token YOUR_TOKEN
+# Launch MPV with the downloaded subtitles
+jimaku-dl /path/to/video.mkv --play
+
+# Specify an AniList ID directly
+jimaku-dl /path/to/video.mkv --anilist-id 123456
+
+# Set the Jimaku API token
+jimaku-dl /path/to/video.mkv --token your_api_token
+
+# Set the logging level
+jimaku-dl /path/to/video.mkv --log-level DEBUG
 ```
 
-### Python Class
+### Python API
+
+You can also use Jimaku Downloader as a Python library:
 
 ```python
-from jimaku_downloader import JimakuDownloader
+from jimaku_dl.downloader import JimakuDownloader
 
-# Create a downloader instance
 downloader = JimakuDownloader(api_token="your_api_token", log_level="INFO")
-
-# Download subtitles
-downloaded_files = downloader.download_subtitles(
-    media_path="/path/to/your/anime.mkv",
-    dest_dir="/path/to/save/subtitles/",  # Optional
-    play=True  # Optional: play with MPV after downloading
-)
-
-print(f"Downloaded {len/downloaded_files)} subtitle files")
+downloaded_files = downloader.download_subtitles("/path/to/video.mkv", dest_dir="/custom/path", play=True)
+print(f"Downloaded files: {downloaded_files}")
 ```
 
-#### Environment Variables
+## File Naming
 
-You can set your Jimaku API token using the `JIMAKU_API_TOKEN` environment variable:
+Jimaku Downloader supports various file naming conventions to extract show title, season, and episode information. It is recommended to follow the [Trash Guides recommended naming schema](https://trash-guides.info/Sonarr/Sonarr-recommended-naming-scheme/#recommended-naming-scheme) for best results.
 
-```bash
-export JIMAKU_API_TOKEN=your_api_token
-```
+### Examples
 
-## Requirements
+- `Show Title - S01E02 - Episode Name [1080p].mkv`
+- `Show.Name.S01E02.1080p.mkv`
+- `Show_Name_S01E02_HEVC.mkv`
+- `/path/to/Show Name/Season-1/Show Name - 02 [1080p].mkv`
 
-- Python 3.8 or higher
-- `fzf` command-line utility for interactive selection
-- `mpv` (optional, for playback functionality)
-- A valid [jimaku.cc](https://jimaku.cc/) API token
+## Development
+
+To contribute to Jimaku Downloader, follow these steps:
+
+1. Clone the repository:
+
+   ```sh
+   git clone https://github.com/yourusername/jimaku-dl.git
+   cd jimaku-dl
+   ```
+
+2. Create a virtual environment and activate it:
+
+   ```sh
+   python -m venv venv
+   source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
+   ```
+
+3. Install the dependencies:
+
+   ```sh
+   pip install -r requirements.txt
+   ```
+
+4. Run the tests:
+
+   ```sh
+   pytest
+   ```
 
 ## License
 
-GPL v3
+Jimaku Downloader is licensed under the MIT License. See the [LICENSE](LICENSE) file for more information.
