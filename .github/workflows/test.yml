@@ -38,15 +38,15 @@ jobs:
 
       - name: Lint with flake8
         run: |
-          flake8 jimaku_dl
+          flake8 src/jimaku_dl
 
       - name: Check formatting with black
         run: |
-          black --check jimaku_dl
+          black --check src/jimaku_dl
 
       - name: Check imports with isort
         run: |
-          isort --check jimaku_dl
+          isort --check src/jimaku_dl
 
       - name: Test with pytest
         run: |
