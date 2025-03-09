@@ -6,23 +6,22 @@
 
 <div align="center">
   <p>
-    <h3></h3>
     <video controls muted src="https://github.com/user-attachments/assets/3723866f-4e7d-4f89-8b55-17f2fb6fa6be"></video>
   </p>
 </div>
 
 ## Features
 
-- Query AniList for anime titles
+- Queries AniList for anime titles
 - Select subtitle entries from Jimaku
 - Download subtitles to a specified directory
 - Launch MPV with the downloaded subtitles
 - Supports both file and directory inputs
-- Configurable logging levels
+  - Support for selecting/downloading multiple subtitle files
 
 ## Installation
 
-You can install Jimaku Downloader using pip:
+You can install Jimaku Downloader using pip
 
 ```sh
 pip install jimaku-dl
@@ -114,7 +113,7 @@ To contribute to Jimaku Downloader, follow these steps:
 3. Install the dependencies:
 
    ```sh
-   pip install -r requirements.txt
+   pip install -r requirements_dev.txt
    ```
 
 4. Run the tests:
@@ -125,4 +124,4 @@ To contribute to Jimaku Downloader, follow these steps:
 
 ## License
 
-Jimaku Downloader is licensed under the MIT License. See the [LICENSE](LICENSE) file for more information.
+Jimaku Downloader is licensed under the GPLv3 License. See the [LICENSE](LICENSE) file for more information.
