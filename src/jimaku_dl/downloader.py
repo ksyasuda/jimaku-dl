@@ -4,7 +4,7 @@ from os import environ
 from os.path import abspath, basename, dirname, exists, isdir, join, normpath, splitext
 from re import IGNORECASE
 from re import compile as re_compile
-from re import search
+from re import search, sub
 from subprocess import CalledProcessError
 from subprocess import run as subprocess_run
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -104,30 +104,115 @@ class JimakuDownloader:
             - season (int): Season number
             - episode (int): Episode number
         """
-        match = search(r"(.+?)[. _-]+[Ss](\d+)[Ee](\d+)", filename)
+        # Clean up filename first to handle parentheses and brackets
+        clean_filename = filename
+
+        # Try Trash Guides anime naming schema first
+        # Format: {Series Title} - S{season:00}E{episode:00} - {Episode Title} [...]
+        trash_guide_match = search(
+            r"(.+?)(?:\(\d{4}\))?\s*-\s*[Ss](\d+)[Ee](\d+)\s*-\s*.+",
+            basename(clean_filename),
+        )
+        if trash_guide_match:
+            title = trash_guide_match.group(1).strip()
+            season = int(trash_guide_match.group(2))
+            episode = int(trash_guide_match.group(3))
+            self.logger.debug(
+                f"Parsed using Trash Guides format: {title=}, {season=}, {episode=}"
+            )
+            return title, season, episode
+
+        # Try to extract from directory structure following Trash Guides format
+        # Format: /path/to/{Series Title}/Season {season}/{filename}
+        parts = normpath(clean_filename).split("/")
+        if len(parts) >= 3 and "season" in parts[-2].lower():
+            # Get season from the Season XX directory
+            season_match = search(r"season\s*(\d+)", parts[-2].lower())
+            if season_match:
+                season = int(season_match.group(1))
+                # The show title is likely the directory name one level up
+                title = parts[-3]
+
+                # Try to get episode number from filename
+                ep_match = search(
+                    r"[Ss](\d+)[Ee](\d+)|[Ee](?:pisode)?\s*(\d+)|(?:^|\s|[._-])(\d+)(?:\s|$|[._-])",
+                    parts[-1],
+                )
+                if ep_match:
+                    # Find the first non-None group which contains the episode number
+                    episode_groups = ep_match.groups()
+                    episode_str = next(
+                        (g for g in episode_groups if g is not None), "1"
+                    )
+                    # If we found S01E01 format, use the episode part (second group)
+                    if ep_match.group(1) is not None and ep_match.group(2) is not None:
+                        episode_str = ep_match.group(2)
+                    episode = int(episode_str)
+                else:
+                    episode = 1
+
+                self.logger.debug(
+                    f"Parsed from Trash Guides directory structure: {title=}, {season=}, {episode=}"
+                )
+                return title, season, episode
+
+        # Try the standard S01E01 format
+        match = search(r"(.+?)[. _-]+[Ss](\d+)[Ee](\d+)", clean_filename)
         if match:
-            title = match.group(1).replace(".", " ").strip()
+            title = match.group(1).replace(".", " ").strip().replace("_", " ")
             season = int(match.group(2))
             episode = int(match.group(3))
+            self.logger.debug(
+                f"Parsed using S01E01 format: {title=}, {season=}, {episode=}"
+            )
             return title, season, episode
-        else:
-            self.logger.warning("Could not parse filename automatically.")
-            title = input(
-                "Could not parse media title. Please enter show title: "
-            ).strip()
-            try:
-                season = int(
-                    input("Enter season number (or 0 if not applicable): ").strip()
-                    or "0"
-                )
-                episode = int(
-                    input("Enter episode number (or 0 if not applicable): ").strip()
-                    or "0"
-                )
-            except ValueError:
-                self.logger.error("Invalid input.")
-                raise ValueError("Invalid season or episode number")
-            return title, season, episode
+
+        # Try to extract from paths like "Show Name/Season-1/Episode" format
+        parts = normpath(filename).split("/")
+        if len(parts) >= 3:
+            # Check if the parent directory contains "Season" in the name
+            season_dir = parts[-2]
+            if "season" in season_dir.lower():
+                season_match = search(r"season[. _-]*(\d+)", season_dir.lower())
+                if season_match:
+                    season = int(season_match.group(1))
+                    # The show name is likely 2 directories up
+                    title = parts[-3].replace(".", " ").strip()
+                    # Try to find episode number in the filename
+                    ep_match = search(
+                        r"[Ee](?:pisode)?[. _-]*(\d+)|[. _-](\d+)[. _-]", parts[-1]
+                    )
+                    episode = int(
+                        ep_match.group(1)
+                        if ep_match and ep_match.group(1)
+                        else ep_match.group(2) if ep_match and ep_match.group(2) else 1
+                    )
+                    self.logger.debug(
+                        f"Parsed from directory structure: {title=}, {season=}, {episode=}"
+                    )
+                    return title, season, episode
+
+        return self._prompt_for_title_info(filename)
+
+    def _prompt_for_title_info(self, filename: str) -> Tuple[str, int, int]:
+        """
+        Prompt the user to manually enter show title and episode info.
+        """
+        self.logger.warning("Could not parse filename automatically.")
+        print(f"\nFilename: {filename}")
+        print("Could not automatically determine anime title and episode information.")
+        title = input("Please enter the anime title: ").strip()
+        try:
+            season = int(
+                input("Enter season number (or 0 if not applicable): ").strip() or "1"
+            )
+            episode = int(
+                input("Enter episode number (or 0 if not applicable): ").strip() or "1"
+            )
+        except ValueError:
+            self.logger.error("Invalid input.")
+            raise ValueError("Invalid season or episode number")
+        return title, season, episode
 
     def parse_directory_name(self, dirname: str) -> Tuple[bool, str, int, int]:
         """
@@ -273,7 +358,7 @@ class JimakuDownloader:
         except Exception as e:
             self.logger.warning(f"Could not save AniList cache file: {e}")
 
-    def query_anilist(self, title: str) -> int:
+    def query_anilist(self, title: str, season: Optional[int] = None) -> int:
         """
         Query AniList's GraphQL API for the given title and return its media ID.
 
@@ -281,6 +366,8 @@ class JimakuDownloader:
         ----------
         title : str
             The anime title to search for
+        season : int, optional
+            The season number to search for
 
         Returns
         -------
@@ -301,27 +388,63 @@ class JimakuDownloader:
               english
               native
             }
+            synonyms
           }
         }
         """
-        variables = {"search": title}
+
+        # Clean up the title to remove special characters and extra spaces
+        cleaned_title = sub(r"[^\w\s]", "", title).strip()
+
+        # Append season to the title if season is greater than 1
+        if season and season > 1:
+            cleaned_title += f" - Season {season}"
+
+        variables = {
+            "search": cleaned_title
+        }
+
         try:
-            self.logger.debug(f"Sending AniList query for title: {title}")
+            self.logger.debug("Querying AniList API for title: %s", title)
+            self.logger.debug(f"Query variables: {variables}")
             response = requests_post(
                 self.ANILIST_API_URL, json={"query": query, "variables": variables}
             )
             response.raise_for_status()
             data = response.json()
-            self.logger.debug(f"AniList response: {data}")
+
             media = data.get("data", {}).get("Media")
             if media:
-                return media.get("id")
-            else:
-                self.logger.error("AniList: No media found for title.")
-                raise ValueError(f"No media found on AniList for title: {title}")
+                anilist_id = media.get("id")
+                self.logger.info(f"Found AniList ID: {anilist_id}")
+                return anilist_id
+
+            # If all automatic methods fail, raise ValueError
+            self.logger.error(
+                f"AniList search failed for title: {title}, season: {season}"
+            )
+            raise ValueError(f"Could not find anime on AniList for title: {title}")
+
         except Exception as e:
             self.logger.error(f"Error querying AniList: {e}")
             raise ValueError(f"Error querying AniList API: {str(e)}")
+
+    def _prompt_for_anilist_id(self, title: str) -> int:
+        """
+        Prompt the user to manually enter an AniList ID.
+        """
+        print(f"\nPlease find the AniList ID for: {title}")
+        print("Visit https://anilist.co and search for your anime.")
+        print(
+            "The ID is the number in the URL, e.g., https://anilist.co/anime/12345 -> ID is 12345"
+        )
+
+        while True:
+            try:
+                anilist_id = int(input("Enter AniList ID: ").strip())
+                return anilist_id
+            except ValueError:
+                print("Please enter a valid number.")
 
     def query_jimaku_entries(self, anilist_id: int) -> List[Dict[str, Any]]:
         """
@@ -344,7 +467,8 @@ class JimakuDownloader:
         """
         if not self.api_token:
             raise ValueError(
-                "API token is required. Set it in the constructor or JIMAKU_API_TOKEN env var."
+                "API token is required for downloading subtitles from Jimaku. "
+                "Set it in the constructor or JIMAKU_API_TOKEN env var."
             )
 
         params = {"anilist_id": anilist_id}
@@ -392,7 +516,8 @@ class JimakuDownloader:
         """
         if not self.api_token:
             raise ValueError(
-                "API token is required. Set it in the constructor or JIMAKU_API_TOKEN env var."
+                "API token is required for downloading subtitles from Jimaku. "
+                "Set it in the constructor or JIMAKU_API_TOKEN env var."
             )
 
         url = f"{self.JIMAKU_FILES_BASE}/{entry_id}/files"
@@ -434,7 +559,7 @@ class JimakuDownloader:
             Filtered list of file info dictionaries matching the target episode,
             or all files if no matches are found
         """
-        filtered_files = []
+        specific_matches = []
         episode_patterns = [
             re_compile(r"[Ee](?:p(?:isode)?)?[ ._-]*(\d+)", IGNORECASE),
             re_compile(r"(?:^|\s|[._-])(\d+)(?:\s|$|[._-])", IGNORECASE),
@@ -442,47 +567,56 @@ class JimakuDownloader:
         ]
 
         all_episodes_keywords = ["all", "batch", "complete", "season", "full"]
+        batch_files = []
+        has_specific_match = False
 
+        # First pass: find exact episode matches
         for file_info in files:
             filename = file_info.get("name", "").lower()
             matched = False
 
+            # Try to match specific episode numbers
             for pattern in episode_patterns:
                 matches = pattern.findall(filename)
                 for match in matches:
                     try:
                         file_episode = int(match)
                         if file_episode == target_episode:
-                            filtered_files.append(file_info)
+                            specific_matches.append(file_info)
                             self.logger.debug(
                                 f"Matched episode {target_episode} in: {filename}"
                             )
                             matched = True
+                            has_specific_match = True
                             break
                     except (ValueError, TypeError):
                         continue
                 if matched:
                     break
 
+            # Identify batch files
             if not matched:
                 might_include_episode = any(
                     keyword in filename for keyword in all_episodes_keywords
                 )
-
                 if might_include_episode:
-                    self.logger.debug(
-                        f"Might include episode {target_episode} (batch): {filename}"
-                    )
-                    filtered_files.append(file_info)
+                    self.logger.debug(f"Potential batch file: {filename}")
+                    batch_files.append(file_info)
+
+        # Always include batch files, but sort them to the end
+        filtered_files = specific_matches + batch_files
 
         if filtered_files:
+            total_specific = len(specific_matches)
+            total_batch = len(batch_files)
             self.logger.info(
-                f"Found {len(filtered_files)} files matching episode {target_episode}"
+                f"Found {len(filtered_files)} files matching episode {target_episode} "
+                f"({total_specific} specific matches, {total_batch} batch files)"
             )
             return filtered_files
         else:
             self.logger.warning(
-                f"No files specifically matched episode {target_episode}, showing all options"
+                f"No files matched episode {target_episode}, showing all options"
             )
             return files
 
@@ -569,7 +703,11 @@ class JimakuDownloader:
             raise ValueError(f"Error downloading file: {str(e)}")
 
     def download_subtitles(
-        self, media_path: str, dest_dir: Optional[str] = None, play: bool = False
+        self,
+        media_path: str,
+        dest_dir: Optional[str] = None,
+        play: bool = False,
+        anilist_id: Optional[int] = None,
     ) -> List[str]:
         """
         Download subtitles for the given media path.
@@ -584,6 +722,8 @@ class JimakuDownloader:
             Directory to save downloaded subtitles (default: same directory as media)
         play : bool, default=False
             Whether to launch MPV with the subtitles after download
+        anilist_id : int, optional
+            AniList ID to use directly instead of searching
 
         Returns
         -------
@@ -632,17 +772,35 @@ class JimakuDownloader:
             f"Identified show: {title}, Season: {season}, Episode: {episode}"
         )
 
-        anilist_id = self.load_cached_anilist_id(media_dir)
+        if anilist_id is None:
+            anilist_id = self.load_cached_anilist_id(media_dir)
+
         if not anilist_id:
             self.logger.info("Querying AniList for media ID...")
-            anilist_id = self.query_anilist(title)
+            anilist_id = self.query_anilist(title, season)
             self.logger.info(f"AniList ID for '{title}' is {anilist_id}")
             self.save_anilist_id(media_dir, anilist_id)
         else:
-            self.logger.info(f"Using cached AniList ID: {anilist_id}")
+            self.logger.info(
+                f"Using {'provided' if anilist_id else 'cached'} AniList ID: {anilist_id}"
+            )
+
+        # Now check for API token before making Jimaku API calls
+        if not self.api_token:
+            self.logger.error(
+                "Jimaku API token is required to download subtitles. "
+                "Please set it with --token or the JIMAKU_API_TOKEN environment variable."
+            )
+            raise ValueError(
+                "Jimaku API token is required to download subtitles. "
+                "Please set it with --token or the JIMAKU_API_TOKEN environment variable."
+            )
 
         self.logger.info("Querying Jimaku for subtitle entries...")
         entries = self.query_jimaku_entries(anilist_id)
+
+        if not entries:
+            raise ValueError("No subtitle entries found for AniList ID")
 
         entry_options = []
         entry_mapping = {}
