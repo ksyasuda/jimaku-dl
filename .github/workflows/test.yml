@@ -37,7 +37,7 @@ jobs:
 
       - name: Lint with flake8
         run: |
-          flake8 src/jimaku_dl
+          flake8 src/jimaku_dl --max-line-length 88
 
       - name: Check formatting with black
         run: |

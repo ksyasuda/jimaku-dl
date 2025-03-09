@@ -15,9 +15,7 @@ def main():
     Command line entry point for Jimaku subtitle downloader.
     """
     parser = ArgumentParser(description="Download anime subtitles from Jimaku")
-    parser.add_argument(
-        "media_path", help="Path to the media file or directory"
-    )
+    parser.add_argument("media_path", help="Path to the media file or directory")
     parser.add_argument(
         "-d",
         "--dest",
@@ -77,9 +75,7 @@ def main():
             print("No subtitle files were downloaded.")
             return 1
 
-        print(
-            f"Successfully downloaded {len(downloaded_files)} subtitle files."
-        )
+        print(f"Successfully downloaded {len(downloaded_files)} subtitle files.")
         return 0
 
     except ValueError as e:

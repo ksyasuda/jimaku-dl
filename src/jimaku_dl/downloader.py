@@ -25,9 +25,7 @@ class JimakuDownloader:
     JIMAKU_SEARCH_URL = "https://jimaku.cc/api/entries/search"
     JIMAKU_FILES_BASE = "https://jimaku.cc/api/entries"
 
-    def __init__(
-        self, api_token: Optional[str] = None, log_level: str = "INFO"
-    ):
+    def __init__(self, api_token: Optional[str] = None, log_level: str = "INFO"):
         """
         Initialize the JimakuDownloader with API token and logging
 
@@ -44,8 +42,7 @@ class JimakuDownloader:
         self.api_token = api_token or environ.get("JIMAKU_API_TOKEN", "")
         if not self.api_token:
             self.logger.warning(
-                "No API token provided. "
-                "Will need to be set before downloading."
+                "No API token provided. " "Will need to be set before downloading."
             )
 
     def _setup_logging(self, log_level: str) -> Logger:
@@ -152,10 +149,7 @@ class JimakuDownloader:
                     episode_str = next(
                         (g for g in episode_groups if g is not None), "1"
                     )
-                    if (
-                        ep_match.group(1) is not None
-                        and ep_match.group(2) is not None
-                    ):
+                    if ep_match.group(1) is not None and ep_match.group(2) is not None:
                         episode_str = ep_match.group(2)
                     episode = int(episode_str)
                 else:
@@ -204,9 +198,7 @@ class JimakuDownloader:
                         ep_match.group(1)
                         if ep_match and ep_match.group(1)
                         else (
-                            ep_match.group(2)
-                            if ep_match and ep_match.group(2)
-                            else 1
+                            ep_match.group(2) if ep_match and ep_match.group(2) else 1
                         )
                     )
                     self.logger.debug(
@@ -229,13 +221,10 @@ class JimakuDownloader:
         title = input("Please enter the anime title: ").strip()
         try:
             season = int(
-                input("Enter season number (or 0 if not applicable): ").strip()
-                or "1"
+                input("Enter season number (or 0 if not applicable): ").strip() or "1"
             )
             episode = int(
-                input(
-                    "Enter episode number " + "(or 0 if not applicable): "
-                ).strip()
+                input("Enter episode number " + "(or 0 if not applicable): ").strip()
                 or "1"
             )
         except ValueError:
@@ -330,9 +319,7 @@ class JimakuDownloader:
                 )
                 return title, season, episode
 
-            self.logger.debug(
-                f"No anime title in '{path}', trying parent directory"
-            )
+            self.logger.debug(f"No anime title in '{path}', trying parent directory")
             parent_path = dirname(path)
 
             if parent_path == path:
@@ -340,15 +327,9 @@ class JimakuDownloader:
 
             path = parent_path
 
-        self.logger.error(
-            "Could not extract anime title from path: %s", original_path
-        )
-        self.logger.error(
-            "Please specify a directory with a recognizable anime name"
-        )
-        raise ValueError(
-            "Could not find anime title in path: " + f"{original_path}"
-        )
+        self.logger.error("Could not extract anime title from path: %s", original_path)
+        self.logger.error("Please specify a directory with a recognizable anime name")
+        raise ValueError("Could not find anime title in path: " + f"{original_path}")
 
     def load_cached_anilist_id(self, directory: str) -> Optional[int]:
         """
@@ -461,9 +442,7 @@ class JimakuDownloader:
             self.logger.error(
                 f"AniList search failed for title: {title}, season: {season}"
             )
-            raise ValueError(
-                f"Could not find anime on AniList for title: {title}"
-            )
+            raise ValueError(f"Could not find anime on AniList for title: {title}")
 
         except Exception as e:
             self.logger.error(f"Error querying AniList: {e}")
@@ -519,9 +498,7 @@ class JimakuDownloader:
             "Content-Type": "application/json",
         }
         try:
-            self.logger.debug(
-                f"Querying Jimaku entries for AniList ID: {anilist_id}"
-            )
+            self.logger.debug(f"Querying Jimaku entries for AniList ID: {anilist_id}")
             response = requests_get(
                 self.JIMAKU_SEARCH_URL, params=params, headers=headers
             )
@@ -529,9 +506,7 @@ class JimakuDownloader:
             results = response.json()
             self.logger.debug(f"Jimaku search response: {results}")
             if not results:
-                self.logger.error(
-                    "No subtitle entries found on Jimaku for this media."
-                )
+                self.logger.error("No subtitle entries found on Jimaku for this media.")
                 raise ValueError(
                     f"No subtitle entries found for AniList ID: {anilist_id}"
                 )
@@ -540,9 +515,7 @@ class JimakuDownloader:
             self.logger.error(f"Error querying Jimaku API: {e}")
             raise ValueError(f"Error querying Jimaku API: {str(e)}")
 
-    def get_entry_files(
-        self, entry_id: Union[str, int]
-    ) -> List[Dict[str, Any]]:
+    def get_entry_files(self, entry_id: Union[str, int]) -> List[Dict[str, Any]]:
         """
         Retrieve file information for a given entry ID.
 
@@ -866,10 +839,7 @@ class JimakuDownloader:
 
         self.logger.info("Select a subtitle entry using fzf:")
         selected_entry_option = self.fzf_menu(entry_options, multi=False)
-        if (
-            not selected_entry_option
-            or selected_entry_option not in entry_mapping
-        ):
+        if not selected_entry_option or selected_entry_option not in entry_mapping:
             raise ValueError("No valid entry selected")
 
         selected_entry = entry_mapping[selected_entry_option]
@@ -894,8 +864,7 @@ class JimakuDownloader:
         file_options.sort()
 
         self.logger.info(
-            f"Select {'one or more' if is_directory else 'one'} "
-            "subtitle file(s):"
+            f"Select {'one or more' if is_directory else 'one'} " "subtitle file(s):"
         )
         selected_files = self.fzf_menu(file_options, multi=is_directory)
 
@@ -912,16 +881,13 @@ class JimakuDownloader:
         for opt in selected_files_list:
             file_info = file_mapping.get(opt)
             if not file_info:
-                self.logger.warning(
-                    f"Could not find mapping for selected file: {opt}"
-                )
+                self.logger.warning(f"Could not find mapping for selected file: {opt}")
                 continue
 
             download_url = file_info.get("url")
             if not download_url:
                 self.logger.warning(
-                    f"File option '{opt}' does not have a download URL. "
-                    "Skipping."
+                    f"File option '{opt}' does not have a download URL. " "Skipping."
                 )
                 continue
 
