@@ -68,13 +68,17 @@ class TestParseFilename:
 
     def test_directory_structure_extraction(self):
         """Test extracting info from directory structure."""
-        # Standard Season-## format
-        title, season, episode = self.downloader.parse_filename(
-            "/path/to/Show Name/Season-1/Show Name - 02 [1080p].mkv"
-        )
-        assert title == "Show Name"
-        assert season == 1
-        assert episode == 2
+        # Mock _prompt_for_title_info to avoid reading from stdin
+        with patch.object(
+            self.downloader, "_prompt_for_title_info", return_value=("Show Name", 1, 2)
+        ):
+            # Standard Season-## format
+            title, season, episode = self.downloader.parse_filename(
+                "/path/to/Show Name/Season-1/Show Name - 02 [1080p].mkv"
+            )
+            assert title == "Show Name"
+            assert season == 1
+            assert episode == 2
 
         # Season ## format
         title, season, episode = self.downloader.parse_filename(
