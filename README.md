@@ -41,7 +41,6 @@ from the AUR
 paru -S python-jimaku-dl
 # or
 yay -S python-jimaku-dl
-
 ```
 
 ## Usage
