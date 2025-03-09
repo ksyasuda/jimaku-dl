@@ -7,8 +7,7 @@
 <div align="center">
   <p>
     <h3></h3>
-    <video controls muted src="https://github.com/user-attachments/assets/544a9204-ceb4-4c9c-b91d-3719d2a037e7
-"></video>
+    <video controls muted src="https://github.com/user-attachments/assets/3723866f-4e7d-4f89-8b55-17f2fb6fa6be"></video>
   </p>
 </div>
 
