@@ -14,14 +14,15 @@ def main():
     """
     Command line entry point for Jimaku subtitle downloader.
     """
-    parser = ArgumentParser(
-        description="Download anime subtitles from Jimaku using the AniList API."
-    )
+    parser = ArgumentParser(description="Download anime subtitles from Jimaku")
     parser.add_argument("media_path", help="Path to the media file or directory")
     parser.add_argument(
         "-d",
         "--dest",
-        help="Directory to save downloaded subtitles (default: same directory as video/input directory)",
+        help=(
+            "Directory to save downloaded subtitles "
+            "(default: same directory as video/input directory)"
+        ),
     )
     parser.add_argument(
         "-p",

@@ -2,9 +2,14 @@ name: Tests
 
 on:
   push:
-    branches: [master]
+    paths:
+      - "src/**"
+      - "tests/**"
   pull_request:
     branches: [master]
+    paths:
+      - "src/**"
+      - "tests/**"
 
 jobs:
   test:
@@ -38,7 +43,7 @@ jobs:
 
       - name: Lint with flake8
         run: |
-          flake8 src/jimaku_dl
+          flake8 src/jimaku_dl --max-line-length 88
 
       - name: Check formatting with black
         run: |
@@ -50,10 +55,18 @@ jobs:
 
       - name: Test with pytest
         run: |
-          pytest --cov=jimaku_dl --cov-report=xml
+          pytest --cov-branch --cov=jimaku_dl --cov-report=xml
+          pytest --cov --junitxml=junit.xml -o junit_family=legacy
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
           file: ./coverage.xml
           fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}

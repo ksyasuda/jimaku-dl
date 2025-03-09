@@ -71,7 +71,9 @@ class TestJimakuDownloader:
         assert result == 123456
 
         # Test with special characters in the title
-        result = downloader.query_anilist("KonoSuba – God’s blessing on this wonderful world!! (2016)", season=3)
+        result = downloader.query_anilist(
+            "KonoSuba – God’s blessing on this wonderful world!! (2016)", season=3
+        )
         assert result == 123456
 
         # Don't try to assert on the mock_requests functions directly as they're not MagicMock objects
@@ -670,27 +672,23 @@ class TestJimakuDownloader:
         """Test finding anime title with multiple path traversals."""
         downloader = JimakuDownloader(api_token="test_token")
 
-        # Create nested directory structure
-        nested_dir = os.path.join(temp_dir, "Movies/Anime/Winter 2023/MyShow/Season 1")
+        # Create nested directory structure using proper path joining
+        path_components = ["Movies", "Anime", "Winter 2023", "MyShow", "Season 1"]
+        nested_dir = os.path.join(temp_dir, *path_components)
         os.makedirs(nested_dir, exist_ok=True)
+
+        # Get parent directories using os.path operations
+        parent_dir1 = os.path.dirname(nested_dir)  # MyShow
+        parent_dir2 = os.path.dirname(parent_dir1)  # Winter 2023
+        parent_dir3 = os.path.dirname(parent_dir2)  # Anime
 
         # Mock parse_directory_name to simulate different results at different levels
         original_parse_dir = downloader.parse_directory_name
         results = {
             nested_dir: (False, "", 0, 0),  # Fail at deepest level
-            os.path.dirname(nested_dir): (True, "MyShow", 1, 0),  # Succeed at MyShow
-            os.path.dirname(os.path.dirname(nested_dir)): (
-                False,
-                "",
-                0,
-                0,
-            ),  # Fail at Winter 2023
-            os.path.dirname(os.path.dirname(os.path.dirname(nested_dir))): (
-                False,
-                "",
-                0,
-                0,
-            ),  # Fail at Anime
+            parent_dir1: (True, "MyShow", 1, 0),  # Succeed at MyShow
+            parent_dir2: (False, "", 0, 0),  # Fail at Winter 2023
+            parent_dir3: (False, "", 0, 0),  # Fail at Anime
         }
 
         def mock_parse_directory_name(path):
