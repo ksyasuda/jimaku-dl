@@ -689,6 +689,85 @@ class JimakuDownloader:
             self.logger.warning("User cancelled fzf selection")
             return [] if multi else None
 
+    def get_track_ids(
+        self, media_file: str, subtitle_file: str
+    ) -> Tuple[Optional[int], Optional[int]]:
+        """
+        Determine both the subtitle ID (sid) and Japanese audio ID (aid) in a single MPV call.
+
+        Parameters
+        ----------
+        media_file : str
+            Path to the media file
+        subtitle_file : str
+            Path to the subtitle file
+
+        Returns
+        -------
+        tuple
+            (subtitle_id, audio_id) where both can be None if not found
+        """
+        try:
+            self.logger.debug(f"Determining track IDs for: {media_file}")
+            result = subprocess_run(
+                [
+                    "mpv",
+                    "--list-tracks",
+                    "--sub-files",
+                    subtitle_file,
+                    "--frames=0",
+                    media_file,
+                ],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+
+            sid = None
+            aid = None
+
+            # Process all lines to find both subtitle and audio tracks
+            for line in result.stdout.splitlines():
+                # Look for subtitle tracks
+                if "sid=" in line and subtitle_file.lower() in line.lower():
+                    sid_part = line.split("sid=")[1].split()[0]
+                    try:
+                        sid = int(sid_part)
+                        self.logger.debug(f"Found subtitle ID: {sid}")
+                    except ValueError:
+                        pass
+
+                # Look for Japanese audio tracks
+                if "audio" in line.lower() and "aid=" in line.lower():
+                    # Check for Japanese keywords
+                    jpn_keywords = ["japanese", "日本語", "jpn", "ja"]
+                    if any(keyword in line.lower() for keyword in jpn_keywords):
+                        try:
+                            aid = int(line.split("aid=")[1].split()[0])
+                            self.logger.debug(f"Found Japanese audio track ID: {aid}")
+                        except ValueError:
+                            pass
+
+            # If no Japanese audio was explicitly found but there are audio tracks,
+            # use the first audio track (likely the main audio)
+            if aid is None:
+                for line in result.stdout.splitlines():
+                    if "audio" in line.lower() and "aid=" in line.lower():
+                        try:
+                            aid = int(line.split("aid=")[1].split()[0])
+                            self.logger.debug(
+                                f"No explicit Japanese audio found, using first audio track: {aid}"
+                            )
+                            break
+                        except ValueError:
+                            pass
+
+            return sid, aid
+
+        except Exception as e:
+            self.logger.error(f"Error determining track IDs: {e}")
+            return None, None
+
     def download_file(self, url: str, dest_path: str) -> str:
         """
         Download the file from the given URL and save it to dest_path.
@@ -904,8 +983,14 @@ class JimakuDownloader:
 
         if play and not is_directory:
             self.logger.info("Launching MPV with the subtitle files...")
+            sub_file = downloaded_files[0]
             mpv_cmd = ["mpv", media_file]
-            mpv_cmd.extend([f"--sub-file={filename}"])
+            mpv_cmd.extend([f"--sub-file={sub_file}"])
+            sid, aid = self.get_track_ids(media_file, sub_file)
+            if sid is not None:
+                mpv_cmd.append(f"--sid={sid}")
+            if aid is not None:
+                mpv_cmd.append(f"--aid={aid}")
             try:
                 self.logger.debug(f"Running command: {' '.join(mpv_cmd)}")
                 subprocess_run(mpv_cmd)
