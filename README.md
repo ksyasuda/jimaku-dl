@@ -23,6 +23,8 @@ A tool for downloading Japanese subtitles for anime from <a href="https://jimaku
 - Automatically synchronize subtitles with video files using ffsubsync
 - Play media with downloaded subtitles using MPV
 - Check and reuse existing synchronized subtitle files
+- Automatic playback with MPV after download
+- Background synchronization of subtitles with video (requires ffsubsync)
 
 ## Installation
 
@@ -35,6 +37,7 @@ pip install jimaku-dl
 - Python 3.7+
 - MPV for playing videos (optional)
 - ffsubsync for subtitle synchronization (optional)
+- fzf for interactive selection menus (required)
 
 ## Usage
 
