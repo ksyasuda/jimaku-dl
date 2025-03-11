@@ -2,9 +2,10 @@
 import asyncio
 import json
 import socket
-import tempfile
+import threading
 import time
 from functools import lru_cache
+from importlib.util import find_spec
 from logging import Logger, basicConfig, getLogger
 from os import environ
 from os.path import abspath, basename, dirname, exists, isdir, join, normpath, splitext
@@ -14,15 +15,14 @@ from re import search, sub
 from subprocess import CalledProcessError
 from subprocess import run as subprocess_run
 from typing import Any, Dict, List, Optional, Tuple, Union
-from importlib.util import find_spec
 
+from guessit import guessit
 from requests import get as requests_get
 from requests import post as requests_post
-from guessit import guessit
-import threading
 
 # Check if ffsubsync is available
-FFSUBSYNC_AVAILABLE = find_spec('ffsubsync') is not None
+FFSUBSYNC_AVAILABLE = find_spec("ffsubsync") is not None
+
 
 class JimakuDownloader:
     """
@@ -36,7 +36,12 @@ class JimakuDownloader:
     JIMAKU_SEARCH_URL = "https://jimaku.cc/api/entries/search"
     JIMAKU_FILES_BASE = "https://jimaku.cc/api/entries"
 
-    def __init__(self, api_token: Optional[str] = None, log_level: str = "INFO", quiet: bool = False):
+    def __init__(
+        self,
+        api_token: Optional[str] = None,
+        log_level: str = "INFO",
+        quiet: bool = False,
+    ):
         """
         Initialize the JimakuDownloader with API token and logging
 
@@ -104,7 +109,9 @@ class JimakuDownloader:
         """
         return isdir(path)
 
-    def _parse_with_guessit(self, filename: str) -> Tuple[Optional[str], Optional[int], Optional[int]]:
+    def _parse_with_guessit(
+        self, filename: str
+    ) -> Tuple[Optional[str], Optional[int], Optional[int]]:
         """
         Try to extract show information using guessit.
 
@@ -121,32 +128,35 @@ class JimakuDownloader:
         try:
             self.logger.debug(f"Attempting to parse with guessit: {filename}")
             guess = guessit(filename)
-            
-            title = guess.get('title')
+
+            title = guess.get("title")
             # Preserve year in title if present
-            if title and 'year' in guess:
+            if title and "year" in guess:
                 title = f"{title} ({guess['year']})"
-                
+
             # Handle special case for complex titles
-            if title and 'alternative_title' in guess:
+            if title and "alternative_title" in guess:
                 title = f"{title}: {guess['alternative_title']}"
-            
-            season = guess.get('season', 1)  # Default to season 1 if not found
-            episode = guess.get('episode')
-            
+
+            season = guess.get("season", 1)  # Default to season 1 if not found
+            episode = guess.get("episode")
+
             # Make sure episode is a single int, not a list
             if isinstance(episode, list):
                 episode = episode[0]  # Take the first episode number
-            
+
             if title and episode is not None:
                 self.logger.debug(
-                    f"Guessit parsed: title='{title}', season={season}, episode={episode}"
+                    "Guessit parsed: title='%s', season=%s, episode=%s",
+                    title,
+                    season,
+                    episode,
                 )
                 return title, season, episode
-            
+
             self.logger.debug("Guessit failed to extract all required information")
             return None, None, None
-            
+
         except Exception as e:
             self.logger.debug(f"Guessit parsing failed: {e}")
             return None, None, None
@@ -175,7 +185,7 @@ class JimakuDownloader:
             return title, season, episode
 
         self.logger.debug("Falling back to original parsing methods")
-        
+
         # Clean up filename first to handle parentheses and brackets
         clean_filename = filename
 
@@ -766,7 +776,7 @@ class JimakuDownloader:
         self, media_file: str, subtitle_file: str
     ) -> Tuple[Optional[int], Optional[int]]:
         """
-        Determine both the subtitle ID and Japanese audio ID from file without subprocess call.
+        Determine both the subtitle ID audio ID from file without subprocess call.
         This is a mock implementation for testing that returns fixed IDs.
 
         Parameters
@@ -1330,7 +1340,7 @@ class JimakuDownloader:
                 f"--sub-file={sub_file_abs}",
                 f"--input-ipc-server={socket_path}",
             ]
-            
+
             # Add subtitle and audio track selection if available
             if sid is not None:
                 mpv_cmd.append(f"--sid={sid}")
@@ -1339,27 +1349,34 @@ class JimakuDownloader:
 
             try:
                 self.logger.debug(f"Running MPV command: {' '.join(mpv_cmd)}")
-                
+
                 # Run sync in background if requested
                 if sync:
-                    self.logger.info("Starting subtitle synchronization in background...")
+                    self.logger.info(
+                        "Starting subtitle synchronization in background..."
+                    )
                     for sub_file_path in downloaded_files:
                         if isdir(sub_file_path):
                             continue
-                            
+
                         base, ext = splitext(sub_file_path)
                         synced_output = f"{base}.synced{ext}"
-                        
+
                         thread = threading.Thread(
                             target=self._run_sync_in_thread,
-                            args=(media_file_abs, sub_file_path, synced_output, socket_path),
-                            daemon=True
+                            args=(
+                                media_file_abs,
+                                sub_file_path,
+                                synced_output,
+                                socket_path,
+                            ),
+                            daemon=True,
                         )
                         thread.start()
-                
+
                 # Run MPV without any output redirection
                 subprocess_run(mpv_cmd)
-                
+
             except FileNotFoundError:
                 self.logger.error(
                     "MPV not found. "
@@ -1367,8 +1384,10 @@ class JimakuDownloader:
                 )
 
         elif play and is_directory:
-            print("Cannot play media with MPV when input is a directory. Skipping playback.")
-            self.logger.warning("Cannot play media with MPV when input is a directory. Skipping playback.")
+            print("Cannot play media with MPV when input is a directory. Skipping.")
+            self.logger.warning(
+                "Cannot play media with MPV when input is a directory. Skipping."
+            )
 
         self.logger.info("Subtitle download process completed successfully")
         return downloaded_files
@@ -1393,7 +1412,9 @@ class JimakuDownloader:
         This function is separate to ensure the print message is exactly as expected.
         """
         # Use single quotes in the message since that's what the test expects
-        print('Cannot play media with MPV when input is a directory. Skipping playback.')
+        print(
+            "Cannot play media with MPV when input is a directory. Skipping playback."
+        )
         self.logger.warning(
             "Cannot play media with MPV when input is a directory. Skipping playback."
         )
@@ -1425,9 +1446,9 @@ class JimakuDownloader:
             If files don't exist or synchronization fails
         """
         if not exists(video_path):
-            raise ValueValueError(f"Video file not found: {video_path}")
+            raise ValueError(f"Video file not found: {video_path}")
 
         if not exists(subtitle_path):
-            raise ValueValueError(f"Subtitle file not found: {subtitle_path}")
+            raise ValueError(f"Subtitle file not found: {subtitle_path}")
 
         return self.sync_subtitles(video_path, subtitle_path, output_path)

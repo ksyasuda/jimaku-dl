@@ -4,11 +4,9 @@ import json
 import logging
 import socket
 import sys
-import tempfile
 import threading
 import time
 from os import environ, path
-from subprocess import DEVNULL
 from subprocess import run as subprocess_run
 from typing import Optional, Sequence
 
@@ -329,9 +327,7 @@ def main(args: Optional[Sequence[str]] = None) -> int:
                 return 1
 
         elif parsed_args.play and is_directory:
-            print(
-                "Cannot play media with MPV when input is a directory. Skipping playback."
-            )
+            print("Can't play with MPV when input is a directory. Skipping playback.")
 
         return 0
 
