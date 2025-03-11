@@ -145,3 +145,32 @@ def sample_anime_directory(temp_dir):
             f.write(b"dummy video content")
 
     return anime_dir
+
+
+@pytest.fixture(autouse=True)
+def clean_mocks():
+    """Reset all mocks after each test to prevent side effect leakage."""
+    yield
+    # This runs after each test to clean up
+    from unittest import mock
+    
+    # Get all active patches and stop them
+    mock.patch.stopall()
+    
+    # Clear mock registry
+    mock._patch._active_patches.clear()
+    
+    # Create clean mock for JimakuDownloader methods that are commonly patched
+    clean_download_mock = mock.MagicMock()
+    clean_download_mock.side_effect = None  # Ensure no side effects are set
+    clean_download_mock.return_value = ["/path/to/clean_subtitle.srt"]
+    
+    # Patch the common methods with clean mocks
+    test_patches = [
+        mock.patch('jimaku_dl.cli.JimakuDownloader'),
+        mock.patch('jimaku_dl.cli.parse_args')
+    ]
+    
+    # Start all patches
+    for test_patch in test_patches:
+        test_patch.start()

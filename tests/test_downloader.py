@@ -165,7 +165,10 @@ class TestJimakuDownloader:
     def test_load_cached_anilist_id(self, temp_dir):
         """Test loading cached AniList ID from file."""
         downloader = JimakuDownloader(api_token="test_token")
-
+        
+        # Explicitly clear the LRU cache before testing
+        JimakuDownloader.load_cached_anilist_id.cache_clear()
+        
         # Test with no cache file
         assert downloader.load_cached_anilist_id(temp_dir) is None
 
@@ -174,13 +177,21 @@ class TestJimakuDownloader:
         with open(cache_path, "w") as f:
             f.write("12345")
 
+        # Clear the cache again to ensure fresh read
+        JimakuDownloader.load_cached_anilist_id.cache_clear()
         assert downloader.load_cached_anilist_id(temp_dir) == 12345
 
-        # Test with invalid cache file
-        with open(cache_path, "w") as f:
+        # Create a different directory for invalid cache file test
+        invalid_dir = os.path.join(temp_dir, "invalid_dir")
+        os.makedirs(invalid_dir, exist_ok=True)
+        invalid_cache_path = os.path.join(invalid_dir, ".anilist.id")
+        
+        with open(invalid_cache_path, "w") as f:
             f.write("invalid")
 
-        assert downloader.load_cached_anilist_id(temp_dir) is None
+        # Test with invalid cache file (using the new path)
+        JimakuDownloader.load_cached_anilist_id.cache_clear()
+        assert downloader.load_cached_anilist_id(invalid_dir) is None
 
     def test_save_anilist_id(self, temp_dir):
         """Test saving AniList ID to cache file."""
@@ -882,6 +893,8 @@ class TestJimakuDownloader:
             fzf_menu=MagicMock(
                 side_effect=["1. Test Anime - テスト", "1. Test Anime - 01.srt"]
             ),
+            # Add this additional mock for get_track_ids to prevent the extra subprocess call
+            get_track_ids=MagicMock(return_value=(1, 2)),
         ):
 
             # Mock subprocess_run to verify MPV is launched

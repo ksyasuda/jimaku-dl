@@ -1,16 +1,35 @@
 #!/usr/bin/env python3
 from logging import Logger, basicConfig, getLogger
 from os import environ
-from os.path import abspath, basename, dirname, exists, isdir, join, normpath
+from os.path import abspath, basename, dirname, exists, isdir, join, normpath, splitext
 from re import IGNORECASE
 from re import compile as re_compile
 from re import search, sub
 from subprocess import CalledProcessError
 from subprocess import run as subprocess_run
 from typing import Any, Dict, List, Optional, Tuple, Union
+from argparse import Namespace
 
 from requests import get as requests_get
 from requests import post as requests_post
+
+# Add imports for ffsubsync
+try:
+    import ffsubsync
+    from ffsubsync.constants import *
+    from ffsubsync.ffsubsync import run as ffsubsync_run
+
+    FFSUBSYNC_AVAILABLE = True
+except ImportError:
+    FFSUBSYNC_AVAILABLE = False
+
+from threading import Thread
+import socket
+import time
+import json
+import tempfile
+import asyncio
+from functools import lru_cache
 
 
 class JimakuDownloader:
@@ -331,6 +350,7 @@ class JimakuDownloader:
         self.logger.error("Please specify a directory with a recognizable anime name")
         raise ValueError("Could not find anime title in path: " + f"{original_path}")
 
+    @lru_cache(maxsize=32)
     def load_cached_anilist_id(self, directory: str) -> Optional[int]:
         """
         Look for a file named '.anilist.id' in the given directory
@@ -708,19 +728,23 @@ class JimakuDownloader:
             (subtitle_id, audio_id) where both can be None if not found
         """
         try:
-            self.logger.debug(f"Determining track IDs for: {media_file}")
+            # Ensure we have absolute paths
+            media_file_abs = abspath(media_file)
+            subtitle_file_abs = abspath(subtitle_file)
+            subtitle_basename = basename(subtitle_file_abs).lower()
+
+            self.logger.debug(f"Determining track IDs for: {media_file_abs}")
             result = subprocess_run(
                 [
                     "mpv",
                     "--list-tracks",
-                    "--sub-files",
-                    subtitle_file,
+                    f"--sub-files={subtitle_file_abs}",
                     "--frames=0",
-                    media_file,
+                    media_file_abs,
                 ],
                 capture_output=True,
                 text=True,
-                check=True,
+                check=False
             )
 
             sid = None
@@ -728,39 +752,29 @@ class JimakuDownloader:
 
             # Process all lines to find both subtitle and audio tracks
             for line in result.stdout.splitlines():
-                # Look for subtitle tracks
-                if "sid=" in line and subtitle_file.lower() in line.lower():
-                    sid_part = line.split("sid=")[1].split()[0]
-                    try:
-                        sid = int(sid_part)
-                        self.logger.debug(f"Found subtitle ID: {sid}")
-                    except ValueError:
-                        pass
+                line_lower = line.lower()
+                
+                # Look for subtitle tracks and extract ID from the --sid= parameter
+                if "subtitle" in line_lower or "sub" in line_lower:
+                    if subtitle_basename in line_lower:
+                        sid_match = search(r"--sid=(\d+)", line_lower)
+                        if sid_match:
+                            sid = int(sid_match.group(1))
+                            self.logger.debug(f"Found subtitle ID: {sid}")
 
                 # Look for Japanese audio tracks
-                if "audio" in line.lower() and "aid=" in line.lower():
-                    # Check for Japanese keywords
-                    jpn_keywords = ["japanese", "日本語", "jpn", "ja"]
-                    if any(keyword in line.lower() for keyword in jpn_keywords):
-                        try:
-                            aid = int(line.split("aid=")[1].split()[0])
+                if "audio" in line_lower:
+                    # Look for --aid= parameter
+                    aid_match = search(r"--aid=(\d+)", line_lower)
+                    if aid_match:
+                        current_aid = int(aid_match.group(1))
+                        # Check for Japanese keywords or set as fallback
+                        if any(keyword in line_lower for keyword in ["japanese", "日本語", "jpn", "ja"]):
+                            aid = current_aid
                             self.logger.debug(f"Found Japanese audio track ID: {aid}")
-                        except ValueError:
-                            pass
-
-            # If no Japanese audio was explicitly found but there are audio tracks,
-            # use the first audio track (likely the main audio)
-            if aid is None:
-                for line in result.stdout.splitlines():
-                    if "audio" in line.lower() and "aid=" in line.lower():
-                        try:
-                            aid = int(line.split("aid=")[1].split()[0])
-                            self.logger.debug(
-                                f"No explicit Japanese audio found, using first audio track: {aid}"
-                            )
-                            break
-                        except ValueError:
-                            pass
+                        elif aid is None:  # Store as potential fallback
+                            aid = current_aid
+                            self.logger.debug(f"Storing first audio track as fallback: {aid}")
 
             return sid, aid
 
@@ -789,6 +803,33 @@ class JimakuDownloader:
         ValueError
             If an error occurs during download
         """
+        # Check if file already exists
+        if exists(dest_path):
+            self.logger.debug(f"File already exists at: {dest_path}")
+            
+            # Give user options for how to handle existing file
+            options = [
+                "Overwrite existing file",
+                "Use existing file (skip download)",
+                "Save with a different name"
+            ]
+            
+            selected = self.fzf_menu(options)
+            
+            if not selected or selected == options[1]:  # Use existing
+                self.logger.info(f"Using existing file: {dest_path}")
+                return dest_path
+            
+            elif selected == options[2]:  # Save with different name
+                base, ext = splitext(dest_path)
+                counter = 1
+                while exists(f"{base}_{counter}{ext}"):
+                    counter += 1
+                dest_path = f"{base}_{counter}{ext}"
+                self.logger.info(f"Will download to: {dest_path}")
+                
+            # Otherwise, proceed with overwrite
+        
         try:
             self.logger.debug(f"Downloading file from: {url}")
             response = requests_get(url, stream=True)
@@ -802,12 +843,218 @@ class JimakuDownloader:
             self.logger.error(f"Error downloading subtitle file: {e}")
             raise ValueError(f"Error downloading file: {str(e)}")
 
+    def check_existing_sync(self, subtitle_path: str, output_path: Optional[str] = None) -> Optional[str]:
+        """Check if a synced subtitle file already exists"""
+        # Simply return None - we won't handle duplicates here since we do it during download
+        return None
+
+    def sync_subtitles(
+        self, video_path: str, subtitle_path: str, output_path: Optional[str] = None
+    ) -> str:
+        """
+        Synchronize subtitles to match the video using ffsubsync.
+
+        Parameters
+        ----------
+        video_path : str
+            Path to the video file
+        subtitle_path : str
+            Path to the subtitle file to synchronize
+        output_path : str, optional
+            Path where the synchronized subtitle should be saved.
+            If None, will use the original subtitle path with '.synced' appended
+
+        Returns
+        -------
+        str
+            Path to the synchronized subtitle file
+
+        Raises
+        ------
+        ValueError
+            If synchronization fails or ffsubsync is not installed
+        """
+        try:
+            # Check for existing synced files first
+            existing = self.check_existing_sync(subtitle_path, output_path)
+            if existing:
+                self.logger.info(f"Using existing synced subtitle: {existing}")
+                return existing
+
+            self.logger.info(f"Synchronizing subtitle {subtitle_path} to {video_path}")
+
+            if not output_path:
+                base, ext = splitext(subtitle_path)
+                output_path = f"{base}.synced{ext}"
+                
+            # Ensure input and output paths are different
+            if output_path == subtitle_path:
+                base, ext = splitext(subtitle_path)
+                output_path = f"{base}.synchronized{ext}"
+            
+            # Prepare the command with the minimal needed arguments
+            cmd = ["ffsubsync", video_path, "-i", subtitle_path, "-o", output_path]
+            
+            self.logger.debug(f"Running command: {' '.join(cmd)}")
+            
+            # Run the command as a subprocess
+            process = subprocess_run(
+                cmd,
+                text=True,
+                capture_output=True,
+                check=False  # Don't raise exception on non-zero exit
+            )
+            
+            # Check if the synchronization was successful
+            if process.returncode != 0:
+                self.logger.error(f"Synchronization failed: {process.stderr}")
+                self.logger.warning(f"ffsubsync command exited with code {process.returncode}")
+                self.logger.warning("Using original unsynchronized subtitles")
+                return subtitle_path
+                
+            if not exists(output_path):
+                self.logger.warning("Output file not created, using original subtitles")
+                return subtitle_path
+                
+            self.logger.info(f"Synchronization successful, saved to {output_path}")
+            return output_path
+            
+        except FileNotFoundError:
+            self.logger.error(
+                "ffsubsync command not found. Install it with: pip install ffsubsync"
+            )
+            return subtitle_path
+        except Exception as e:
+            self.logger.error(f"Error during subtitle synchronization: {e}")
+            self.logger.warning("Using original unsynchronized subtitles")
+            return subtitle_path
+
+    async def sync_subtitles_background(
+        self, video_path: str, subtitle_path: str, output_path: str, 
+        mpv_socket_path: Optional[str] = None
+    ) -> None:
+        """
+        Run subtitle synchronization in the background and update MPV when done.
+        
+        Parameters
+        ----------
+        video_path : str
+            Path to the video file
+        subtitle_path : str
+            Path to the subtitle file to synchronize
+        output_path : str
+            Path where the synchronized subtitle will be saved
+        mpv_socket_path : str, optional
+            Path to MPV's IPC socket for sending commands
+        """
+        try:
+            self.logger.debug("Starting background sync")
+            synced_path = await asyncio.to_thread(
+                self.sync_subtitles, video_path, subtitle_path, output_path
+            )
+            
+            if synced_path == subtitle_path:
+                self.logger.debug("Sync skipped or failed")
+                return
+                
+            self.logger.info("Subtitle synchronization completed")
+            
+            if mpv_socket_path and exists(mpv_socket_path):
+                await asyncio.to_thread(
+                    self.update_mpv_subtitle, mpv_socket_path, synced_path
+                )
+        except Exception as e:
+            self.logger.debug(f"Background sync error: {e}")
+    
+    def update_mpv_subtitle(self, socket_path: str, subtitle_path: str) -> bool:
+        """
+        Send commands to MPV through its IPC socket to update the subtitle file.
+        
+        Parameters
+        ----------
+        socket_path : str
+            Path to the MPV IPC socket
+        subtitle_path : str
+            Path to the new subtitle file to load
+            
+        Returns
+        -------
+        bool
+            True if command was sent successfully, False otherwise
+        """
+        try:
+            # Allow some time for MPV to initialize the socket
+            time.sleep(1)
+            
+            # Connect to the MPV socket
+            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            sock.settimeout(3.0)  # Add timeout to avoid hanging
+            sock.connect(socket_path)
+            
+            def send_command(cmd):
+                """Helper function to send command and read response"""
+                try:
+                    sock.send(json.dumps(cmd).encode("utf-8") + b"\n")
+                    try:
+                        response = sock.recv(4096).decode('utf-8')
+                        self.logger.debug(f"MPV response: {response}")
+                        return json.loads(response)
+                    except (socket.timeout, json.JSONDecodeError):
+                        return None
+                except Exception as e:
+                    self.logger.debug(f"Socket send error: {e}")
+                    return None
+
+            # Get current track list to determine next subtitle ID
+            track_list_cmd = {"command": ["get_property", "track-list"], "request_id": 1}
+            track_response = send_command(track_list_cmd)
+            
+            if track_response and "data" in track_response:
+                # Find highest subtitle track ID
+                sub_tracks = [t for t in track_response["data"] if t.get("type") == "sub"]
+                next_id = len(sub_tracks) + 1
+                
+                # Series of commands to update subtitles
+                commands = [
+                    {"command": ["sub-reload"], "request_id": 2},
+                    {"command": ["sub-add", abspath(subtitle_path)], "request_id": 3},
+                    {"command": ["set_property", "sub-visibility", "yes"], "request_id": 4},
+                    {"command": ["set_property", "sid", next_id], "request_id": 5}
+                ]
+                
+                # Send each command
+                all_succeeded = True
+                for cmd in commands:
+                    if not send_command(cmd):
+                        all_succeeded = False
+                        break
+                    time.sleep(0.1)  # Small delay between commands
+
+                # Clean shutdown
+                try:
+                    sock.shutdown(socket.SHUT_RDWR)
+                except:
+                    pass
+                finally:
+                    sock.close()
+
+                if all_succeeded:
+                    self.logger.info(f"Updated MPV with synchronized subtitle: {subtitle_path}")
+                    return True
+            
+            return False
+            
+        except Exception as e:
+            self.logger.error(f"Failed to update MPV subtitles: {e}")
+            return False
+
     def download_subtitles(
         self,
         media_path: str,
         dest_dir: Optional[str] = None,
         play: bool = False,
         anilist_id: Optional[int] = None,
+        sync: Optional[bool] = None,
     ) -> List[str]:
         """
         Download subtitles for the given media path.
@@ -824,6 +1071,9 @@ class JimakuDownloader:
             Whether to launch MPV with the subtitles after download
         anilist_id : int, optional
             AniList ID to use directly instead of searching
+        sync : bool, optional
+            Whether to synchronize subtitles with video using ffsubsync.
+            If None and play=True, defaults to True. Otherwise, defaults to False.
 
         Returns
         -------
@@ -981,24 +1231,44 @@ class JimakuDownloader:
             downloaded_files.append(dest_path)
             self.logger.info(f"Subtitle saved to: {dest_path}")
 
+            if sync and not is_directory and media_file:
+                synced_path = self.sync_subtitles(media_file, dest_path)
+                if synced_path != dest_path:
+                    downloaded_files[-1] = synced_path
+
         if play and not is_directory:
             self.logger.info("Launching MPV with the subtitle files...")
             sub_file = downloaded_files[0]
-            mpv_cmd = ["mpv", media_file]
-            mpv_cmd.extend([f"--sub-file={sub_file}"])
-            sid, aid = self.get_track_ids(media_file, sub_file)
+            sub_file_abs = abspath(sub_file)
+            media_file_abs = abspath(media_file)
+
+            self.logger.debug("Media file absolute path: %s", media_file_abs)
+            self.logger.debug("Subtitle file absolute path: %s", sub_file_abs)
+
+            socket_path = join(tempfile.gettempdir(), f"mpv-jimaku-{int(time.time())}.sock")
+
+            mpv_cmd = [
+                "mpv",
+                media_file_abs,
+                f"--sub-file={sub_file_abs}",
+                f"--input-ipc-server={socket_path}"
+            ]
+            
+            sid, aid = self.get_track_ids(media_file_abs, sub_file_abs)
             if sid is not None:
                 mpv_cmd.append(f"--sid={sid}")
             if aid is not None:
                 mpv_cmd.append(f"--aid={aid}")
+
             try:
-                self.logger.debug(f"Running command: {' '.join(mpv_cmd)}")
-                subprocess_run(mpv_cmd)
+                self.logger.debug(f"Running MPV command: {' '.join(mpv_cmd)}")
+                subprocess_run(mpv_cmd, check=False)
             except FileNotFoundError:
                 self.logger.error(
                     "MPV not found. "
                     "Please install MPV and ensure it is in your PATH."
                 )
+
         elif play and is_directory:
             self.logger.warning(
                 "Cannot play media with MPV when input is a directory. "
@@ -1007,3 +1277,37 @@ class JimakuDownloader:
 
         self.logger.info("Subtitle download process completed successfully")
         return downloaded_files
+
+    def sync_subtitle_file(
+        self, video_path: str, subtitle_path: str, output_path: Optional[str] = None
+    ) -> str:
+        """
+        Standalone method to synchronize an existing subtitle file with a video.
+
+        Parameters
+        ----------
+        video_path : str
+            Path to the video file
+        subtitle_path : str
+            Path to the subtitle file to synchronize
+        output_path : str, optional
+            Path where the synchronized subtitle should be saved.
+            If None, will append '.synced' to the subtitle filename.
+
+        Returns
+        -------
+        str
+            Path to the synchronized subtitle file
+
+        Raises
+        ------
+        ValueError
+            If files don't exist or synchronization fails
+        """
+        if not exists(video_path):
+            raise ValueError(f"Video file not found: {video_path}")
+
+        if not exists(subtitle_path):
+            raise ValueError(f"Subtitle file not found: {subtitle_path}")
+
+        return self.sync_subtitles(video_path, subtitle_path, output_path)

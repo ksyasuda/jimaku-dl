@@ -1,11 +1,6 @@
-"""
-Jimaku Downloader - Download anime subtitles from Jimaku using the AniList API.
+"""Jimaku-dl - A tool for downloading and synchronizing anime subtitles from Jimaku.cc."""
 
-This package provides functionality to search for, select, and download
-subtitles for anime media files or directories.
-"""
-
-__version__ = "0.1.1"
+__version__ = "0.1.0"  # Set the appropriate version number here
 
 from .downloader import JimakuDownloader
 

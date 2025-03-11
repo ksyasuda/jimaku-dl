@@ -1,4 +1,6 @@
-# Jimaku Downloader
+# Jimaku-DL
+
+A tool for downloading and synchronizing anime subtitles from Jimaku.cc.
 
 <div align="center">
 
@@ -16,73 +18,109 @@ A tool for downloading Japanese subtitles for anime from <a href="https://jimaku
 
 ## Features
 
-- Queries AniList for anime titles
-- Select subtitle entries from Jimaku
-- Download subtitles to a specified directory
-- Launch MPV with the downloaded subtitles
-- Supports both file and directory inputs
-  - Support for downloading multiple subtitle files
+- Search for anime titles using the AniList API
+- Download subtitles from Jimaku.cc
+- Automatically synchronize subtitles with video files using ffsubsync
+- Play media with downloaded subtitles using MPV
+- Check and reuse existing synchronized subtitle files
 
 ## Installation
 
-You can install Jimaku Downloader using pip
-
-```sh
+```bash
 pip install jimaku-dl
 ```
 
-### Arch Linux
+### Requirements
 
-Arch Linux users can install
-<a href="https://aur.archlinux.org/packages/python-jimaku-dl" target="_blank">python-jimaku-dl</a>
-from the AUR
-
-```sh
-paru -S python-jimaku-dl
-# or
-yay -S python-jimaku-dl
-```
+- Python 3.7+
+- MPV for playing videos (optional)
+- ffsubsync for subtitle synchronization (optional)
 
 ## Usage
 
-### Command Line Interface
+Jimaku-DL provides a simple command line interface for downloading and synchronizing subtitles.
 
-The main entry point for Jimaku Downloader is the `jimaku-dl` command. Here are some examples of how to use it:
+```bash
+# Basic usage - download subtitles for a video file
+jimaku-dl download /path/to/your/anime.mkv
 
-```sh
-# Download subtitles for a single video file
-jimaku-dl /path/to/video.mkv
+# Download subtitles, sync in background, and play the video with MPV
+jimaku-dl download /path/to/your/anime.mkv --play --sync
 
-# Download subtitles for a directory
-jimaku-dl /path/to/anime/directory
-
-# Specify a custom destination directory
-jimaku-dl /path/to/video.mkv --dest /custom/path
-
-# Launch MPV with the downloaded subtitles
-jimaku-dl /path/to/video.mkv --play
-
-# Specify an AniList ID directly
-jimaku-dl /path/to/video.mkv --anilist-id 123456
-
-# Set the Jimaku API token
-jimaku-dl /path/to/video.mkv --token your_api_token
-
-# Set the logging level
-jimaku-dl /path/to/video.mkv --log-level DEBUG
+# Download subtitles for all episodes in a directory
+jimaku-dl download /path/to/your/anime/season-1/
 ```
 
-### Python API
+> **Note**: For backward compatibility, the `download` subcommand can be omitted:  
+> `jimaku-dl /path/to/your/anime.mkv --play`
 
-You can also use Jimaku Downloader as a Python library:
+### Synchronizing Existing Subtitles
 
-```python
-from jimaku_dl.downloader import JimakuDownloader
+```bash
+# Synchronize existing subtitle file with a video
+jimaku-dl sync /path/to/video.mkv /path/to/subtitles.srt
 
-downloader = JimakuDownloader(api_token="your_api_token", log_level="INFO")
-downloaded_files = downloader.download_subtitles("/path/to/video.mkv", dest_dir="/custom/path", play=True)
-print(f"Downloaded files: {downloaded_files}")
+# Specify output path for synchronized subtitles
+jimaku-dl sync /path/to/video.mkv /path/to/subtitles.srt --output /path/to/output.srt
 ```
+
+### API Token
+
+You'll need a Jimaku API token to use this tool. You can set it in two ways:
+
+1. Using the `--token` flag:
+   ```bash
+   jimaku-dl download /path/to/anime.mkv --token YOUR_TOKEN_HERE
+   ```
+
+2. Setting the `JIMAKU_API_TOKEN` environment variable:
+   ```bash
+   export JIMAKU_API_TOKEN="your-token-here"
+   jimaku-dl download /path/to/anime.mkv
+   ```
+
+## How It Works
+
+1. **Search**: Jimaku-DL analyzes your media file name or directory structure to identify the anime title, season, and episode.
+2. **AniList ID**: It queries the AniList API to get the media ID, which is cached for future use.
+3. **Subtitle Selection**: You'll be presented with a menu to choose subtitle entries and files matching your media.
+4. **Download**: The selected subtitle file is downloaded to your media directory.
+5. **Synchronization**: If requested, the subtitle is synchronized with the video using ffsubsync.
+6. **Playback**: If requested, the media is played with MPV using the downloaded (and optionally synchronized) subtitles.
+
+## Advanced Features
+
+### Reusing Existing Synchronized Subtitles
+
+If you run the tool on a file that already has synchronized subtitles, you'll be prompted to:
+- Use the existing synced file
+- Create a new synced file
+- Cancel synchronization
+
+This saves time when you've already synchronized subtitles for a file.
+
+### Background Synchronization During Playback
+
+When using the `--play` option, your video starts playing immediately. If you also use `--sync`, the subtitle synchronization happens in the background, and the subtitles are automatically updated once synchronization is complete.
+
+## Options
+
+### Global Options
+- `-t, --token TOKEN`: Jimaku API token
+- `-l, --log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}`: Set logging level
+
+### Download Options
+- `-d, --dest-dir DIR`: Destination directory for subtitles
+- `-p, --play`: Play media with MPV after download
+- `-s, --sync`: Synchronize subtitles with video
+- `-a, --anilist-id ID`: Specify AniList ID to skip search
+
+### Sync Options
+- `-o, --output PATH`: Output path for synchronized subtitles
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## File Naming
 
