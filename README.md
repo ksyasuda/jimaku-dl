@@ -10,7 +10,7 @@
 A tool for downloading Japanese subtitles for anime from <a href="https://jimaku.cc" target="_blank" rel="noopener noreferrer">Jimaku</a>
 
   <p>
-    <video controls muted src="https://github.com/user-attachments/assets/3723866f-4e7d-4f89-8b55-17f2fb6fa6be"></video>
+    <video controls muted src="https://github.com/user-attachments/assets/bdf2bb7d-9b0f-47fd-b7d3-db54a9529133"></video>
   </p>
 </div>
 
