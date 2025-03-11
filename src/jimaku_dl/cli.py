@@ -297,15 +297,12 @@ def main(args: Optional[Sequence[str]] = None) -> int:
             media_file = parsed_args.media_path
             subtitle_file = downloaded_files[0]
 
-            socket_path = path.join(
-                tempfile.gettempdir(), f"mpv-jimaku-{int(time.time())}.sock"
-            )
+            socket_path = "/tmp/mpvsocket"
 
             if parsed_args.sync:
                 base, ext = path.splitext(subtitle_file)
                 output_path = f"{base}.synced{ext}"
 
-                # Start background sync in a thread
                 if FFSUBSYNC_AVAILABLE:
                     run_background_sync(
                         media_file, subtitle_file, output_path, socket_path
@@ -313,15 +310,11 @@ def main(args: Optional[Sequence[str]] = None) -> int:
 
             sid, aid = downloader.get_track_ids(media_file, subtitle_file)
 
-            # Prepare mpv command with options to suppress socket error messages
             mpv_cmd = [
                 "mpv",
                 media_file,
                 f"--sub-file={subtitle_file}",
                 f"--input-ipc-server={socket_path}",
-                "--msg-level=ipc=no,input=no,cplayer=no",
-                "--log-file=/dev/null",
-                "--no-terminal",
             ]
 
             if sid is not None:
@@ -330,7 +323,7 @@ def main(args: Optional[Sequence[str]] = None) -> int:
                 mpv_cmd.append(f"--aid={aid}")
 
             try:
-                subprocess_run(mpv_cmd, stdout=DEVNULL, stderr=DEVNULL, check=False)
+                subprocess_run(mpv_cmd)
             except FileNotFoundError:
                 print("Warning: MPV not found. Could not play video.")
                 return 1

@@ -1052,9 +1052,7 @@ class JimakuDownloader:
             True if command was sent successfully, False otherwise
         """
         try:
-            # Allow some time for MPV to initialize the socket
             time.sleep(1)
-            # Connect to the MPV socket
             sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             sock.settimeout(3.0)  # Add timeout to avoid hanging
             sock.connect(socket_path)
@@ -1073,19 +1071,16 @@ class JimakuDownloader:
                     self.logger.debug(f"Socket send error: {e}")
                     return None
 
-            # Get current track list to determine next subtitle ID
             track_list_cmd = {
                 "command": ["get_property", "track-list"],
                 "request_id": 1,
             }
             track_response = send_command(track_list_cmd)
             if track_response and "data" in track_response:
-                # Find highest subtitle track ID
                 sub_tracks = [
                     t for t in track_response["data"] if t.get("type") == "sub"
                 ]
                 next_id = len(sub_tracks) + 1
-                # Series of commands to update subtitles
                 commands = [
                     {"command": ["sub-reload"], "request_id": 2},
                     {"command": ["sub-add", abspath(subtitle_path)], "request_id": 3},
@@ -1095,7 +1090,6 @@ class JimakuDownloader:
                     },
                     {"command": ["set_property", "sid", next_id], "request_id": 5},
                 ]
-                # Send each command
                 all_succeeded = True
                 for cmd in commands:
                     if not send_command(cmd):
@@ -1103,7 +1097,6 @@ class JimakuDownloader:
                         break
                     time.sleep(0.1)  # Small delay between commands
 
-                # Clean shutdown
                 try:
                     sock.shutdown(socket.SHUT_RDWR)
                 finally:
@@ -1322,16 +1315,15 @@ class JimakuDownloader:
             sub_file_abs = abspath(sub_file)
             media_file_abs = abspath(media_file)
 
-            socket_path = join(
-                tempfile.gettempdir(), "mpvsocket"
-            )
+            # Use the standard socket path that mpv-websocket expects
+            socket_path = "/tmp/mpvsocket"
 
             # Get track IDs first, without a subprocess call that would count in tests
             sid, aid = None, None
             if not self.quiet:
                 sid, aid = self.get_track_ids(media_file_abs, sub_file_abs)
 
-            # Build MPV command with optimized options
+            # Build MPV command with minimal options
             mpv_cmd = [
                 "mpv",
                 media_file_abs,
@@ -1339,10 +1331,6 @@ class JimakuDownloader:
                 f"--input-ipc-server={socket_path}",
             ]
             
-            # Apply quiet mode settings
-            if self.quiet:
-                mpv_cmd.append("--really-quiet")
-                
             # Add subtitle and audio track selection if available
             if sid is not None:
                 mpv_cmd.append(f"--sid={sid}")
@@ -1362,7 +1350,6 @@ class JimakuDownloader:
                         base, ext = splitext(sub_file_path)
                         synced_output = f"{base}.synced{ext}"
                         
-                        # Start synchronization in a separate thread
                         thread = threading.Thread(
                             target=self._run_sync_in_thread,
                             args=(media_file_abs, sub_file_path, synced_output, socket_path),
@@ -1370,14 +1357,8 @@ class JimakuDownloader:
                         )
                         thread.start()
                 
-                # Run MPV without blocking for output processing
-                kwargs = {"check": False}
-                if self.quiet:
-                    kwargs.update({
-                        "stdout": subprocess_run.DEVNULL,
-                        "stderr": subprocess_run.DEVNULL
-                    })
-                subprocess_run(mpv_cmd, **kwargs)
+                # Run MPV without any output redirection
+                subprocess_run(mpv_cmd)
                 
             except FileNotFoundError:
                 self.logger.error(
@@ -1444,7 +1425,7 @@ class JimakuDownloader:
             If files don't exist or synchronization fails
         """
         if not exists(video_path):
-            raise ValueError(f"Video file not found: {video_path}")
+            raise ValueValueError(f"Video file not found: {video_path}")
 
         if not exists(subtitle_path):
             raise ValueValueError(f"Subtitle file not found: {subtitle_path}")
