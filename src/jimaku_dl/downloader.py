@@ -14,10 +14,15 @@ from re import search, sub
 from subprocess import CalledProcessError
 from subprocess import run as subprocess_run
 from typing import Any, Dict, List, Optional, Tuple, Union
+from importlib.util import find_spec
 
 from requests import get as requests_get
 from requests import post as requests_post
+from guessit import guessit
+import threading
 
+# Check if ffsubsync is available
+FFSUBSYNC_AVAILABLE = find_spec('ffsubsync') is not None
 
 class JimakuDownloader:
     """
@@ -31,7 +36,7 @@ class JimakuDownloader:
     JIMAKU_SEARCH_URL = "https://jimaku.cc/api/entries/search"
     JIMAKU_FILES_BASE = "https://jimaku.cc/api/entries"
 
-    def __init__(self, api_token: Optional[str] = None, log_level: str = "INFO"):
+    def __init__(self, api_token: Optional[str] = None, log_level: str = "INFO", quiet: bool = False):
         """
         Initialize the JimakuDownloader with API token and logging
 
@@ -42,13 +47,18 @@ class JimakuDownloader:
             JIMAKU_API_TOKEN env var
         log_level : str, default="INFO"
             Logging level to use (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        quiet : bool, default=False
+            If True, suppress MPV output and disable logging
         """
+        self.quiet = quiet
+        if quiet:
+            log_level = "ERROR"  # Only show errors in quiet mode
         self.logger = self._setup_logging(log_level)
 
         self.api_token = api_token or environ.get("JIMAKU_API_TOKEN", "")
         if not self.api_token:
             self.logger.warning(
-                "No API token provided. " "Will need to be set before downloading."
+                "No API token provided. Will need to be set before downloading."
             )
 
     def _setup_logging(self, log_level: str) -> Logger:
@@ -94,9 +104,45 @@ class JimakuDownloader:
         """
         return isdir(path)
 
+    def _parse_with_guessit(self, filename: str) -> Tuple[Optional[str], Optional[int], Optional[int]]:
+        """
+        Try to extract show information using guessit.
+
+        Parameters
+        ----------
+        filename : str
+            The filename to parse
+
+        Returns
+        -------
+        tuple
+            (title, season, episode) where any element can be None if not found
+        """
+        try:
+            self.logger.debug(f"Attempting to parse with guessit: {filename}")
+            guess = guessit(filename)
+            
+            title = guess.get('title')
+            season = guess.get('season', 1)  # Default to season 1 if not found
+            episode = guess.get('episode')
+            
+            if title and episode:
+                self.logger.debug(
+                    f"Guessit parsed: title='{title}', season={season}, episode={episode}"
+                )
+                return title, season, episode
+            
+            self.logger.debug("Guessit failed to extract all required information")
+            return None, None, None
+            
+        except Exception as e:
+            self.logger.debug(f"Guessit parsing failed: {e}")
+            return None, None, None
+
     def parse_filename(self, filename: str) -> Tuple[str, int, int]:
         """
         Extract show title, season, and episode number from the filename.
+        First tries guessit, then falls back to original parsing methods.
 
         Parameters
         ----------
@@ -111,6 +157,13 @@ class JimakuDownloader:
             - season (int): Season number
             - episode (int): Episode number
         """
+        # Try guessit first
+        title, season, episode = self._parse_with_guessit(filename)
+        if title and episode is not None:
+            return title, season, episode
+
+        self.logger.debug("Falling back to original parsing methods")
+        
         # Clean up filename first to handle parentheses and brackets
         clean_filename = filename
 
@@ -1206,6 +1259,10 @@ class JimakuDownloader:
                 raise ValueError("No subtitle file selected")
             selected_files_list = [selected_files]
 
+        # Decide on sync behavior - if not specified and play=True, default to True
+        if sync is None:
+            sync = play
+
         downloaded_files = []
         for opt in selected_files_list:
             file_info = file_mapping.get(opt)
@@ -1231,10 +1288,8 @@ class JimakuDownloader:
             downloaded_files.append(dest_path)
             self.logger.info(f"Subtitle saved to: {dest_path}")
 
-            if sync and not is_directory and media_file:
-                synced_path = self.sync_subtitles(media_file, dest_path)
-                if synced_path != dest_path:
-                    downloaded_files[-1] = synced_path
+            # Don't sync here - we'll do it in background if needed
+            # This prevents blocking MPV launch
 
         if play and not is_directory:
             self.logger.info("Launching MPV with the subtitle files...")
@@ -1242,19 +1297,21 @@ class JimakuDownloader:
             sub_file_abs = abspath(sub_file)
             media_file_abs = abspath(media_file)
 
-            self.logger.debug("Media file absolute path: %s", media_file_abs)
-            self.logger.debug("Subtitle file absolute path: %s", sub_file_abs)
-
             socket_path = join(
                 tempfile.gettempdir(), f"mpv-jimaku-{int(time.time())}.sock"
             )
 
+            # Simplified MPV command with basic terminal OSD settings
             mpv_cmd = [
                 "mpv",
                 media_file_abs,
                 f"--sub-file={sub_file_abs}",
                 f"--input-ipc-server={socket_path}",
             ]
+            
+            if self.quiet:
+                mpv_cmd.append("--really-quiet")
+
             sid, aid = self.get_track_ids(media_file_abs, sub_file_abs)
             if sid is not None:
                 mpv_cmd.append(f"--sid={sid}")
@@ -1263,7 +1320,34 @@ class JimakuDownloader:
 
             try:
                 self.logger.debug(f"Running MPV command: {' '.join(mpv_cmd)}")
-                subprocess_run(mpv_cmd, check=False)
+                
+                # Run sync in background if requested
+                if sync:
+                    self.logger.info("Starting subtitle synchronization in background...")
+                    for sub_file_path in downloaded_files:
+                        if isdir(sub_file_path):
+                            continue
+                            
+                        base, ext = splitext(sub_file_path)
+                        synced_output = f"{base}.synced{ext}"
+                        
+                        # Start synchronization in a separate thread
+                        thread = threading.Thread(
+                            target=self._run_sync_in_thread,
+                            args=(media_file_abs, sub_file_path, synced_output, socket_path),
+                            daemon=True
+                        )
+                        thread.start()
+                
+                # Run MPV without blocking for output processing
+                kwargs = {"check": False}
+                if self.quiet:
+                    kwargs.update({
+                        "stdout": subprocess_run.DEVNULL,
+                        "stderr": subprocess_run.DEVNULL
+                    })
+                subprocess_run(mpv_cmd, **kwargs)
+                
             except FileNotFoundError:
                 self.logger.error(
                     "MPV not found. "
@@ -1278,6 +1362,20 @@ class JimakuDownloader:
 
         self.logger.info("Subtitle download process completed successfully")
         return downloaded_files
+
+    def _run_sync_in_thread(
+        self, video_path: str, subtitle_path: str, output_path: str, socket_path: str
+    ) -> None:
+        """Run subtitle sync in a background thread."""
+        try:
+            synced_path = self.sync_subtitles(video_path, subtitle_path, output_path)
+            if synced_path != subtitle_path:
+                self.logger.info(f"Background sync completed: {synced_path}")
+                # Update subtitle in MPV if running
+                if exists(socket_path):
+                    self.update_mpv_subtitle(socket_path, synced_path)
+        except Exception as e:
+            self.logger.error(f"Background sync error: {e}")
 
     def sync_subtitle_file(
         self, video_path: str, subtitle_path: str, output_path: Optional[str] = None
