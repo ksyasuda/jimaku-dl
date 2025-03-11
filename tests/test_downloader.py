@@ -893,16 +893,16 @@ class TestJimakuDownloader:
             fzf_menu=MagicMock(
                 side_effect=["1. Test Anime - テスト", "1. Test Anime - 01.srt"]
             ),
-            # Add this additional mock for get_track_ids to prevent the extra subprocess call
             get_track_ids=MagicMock(return_value=(1, 2)),
+            _run_sync_in_thread=MagicMock(),  # Add this to prevent background sync
         ):
 
             # Mock subprocess_run to verify MPV is launched
             with patch("jimaku_dl.downloader.subprocess_run") as mock_subprocess:
-                # Call with play=True
-                result = downloader.download_subtitles(sample_video_file, play=True)
+                # Call with play=True, sync=True to verify background sync is properly mocked
+                result = downloader.download_subtitles(sample_video_file, play=True, sync=True)
 
-                # Verify MPV was launched
+                # Verify MPV was launched exactly once
                 mock_subprocess.assert_called_once()
                 # Check that the command includes mpv and the video file
                 assert "mpv" in mock_subprocess.call_args[0][0][0]
