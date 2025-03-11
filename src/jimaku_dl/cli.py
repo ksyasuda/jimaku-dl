@@ -327,7 +327,10 @@ def main(args: Optional[Sequence[str]] = None) -> int:
                 return 1
 
         elif parsed_args.play and is_directory:
-            print("Can't play with MPV when input is a directory. Skipping playback.")
+            print(
+                "Cannot play media with MPV when input is a directory. "
+                "Skipping playback."
+            )
 
         return 0
 
