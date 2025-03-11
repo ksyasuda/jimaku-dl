@@ -4,3 +4,4 @@ idna==3.10
 requests>=2.25.0
 urllib3==2.3.0
 ffsubsync>=0.4.24
+guessit>=3.8.0
