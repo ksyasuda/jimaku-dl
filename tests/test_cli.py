@@ -216,11 +216,12 @@ class TestCli:
             sync=False
         )
         
-        # Patch jimaku_dl.cli.parse_args directly
+        # Add mock for subprocess_run to prevent FileNotFoundError
         with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), \
              patch("jimaku_dl.cli.parse_args", return_value=mock_args), \
              patch("os.path.exists", return_value=True), \
-             patch("jimaku_dl.cli.path.exists", return_value=True):
+             patch("jimaku_dl.cli.path.exists", return_value=True), \
+             patch("jimaku_dl.cli.subprocess_run") as mock_run:  # Mock subprocess_run
             
             result = main()
 
@@ -237,6 +238,8 @@ class TestCli:
                 "/path/to/video.mkv",
                 "/path/to/subtitle.srt"
             )
+            # Verify MPV was called with the right arguments
+            mock_run.assert_called()
 
     def test_token_arg(self):
         """Test CLI with token argument."""
@@ -389,11 +392,12 @@ class TestCli:
             sync=False
         )
         
-        # Add path existence mocks
+        # Add mock for subprocess_run to prevent FileNotFoundError
         with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), \
              patch("jimaku_dl.cli.parse_args", return_value=mock_args), \
              patch("os.path.exists", return_value=True), \
-             patch("jimaku_dl.cli.path.exists", return_value=True):
+             patch("jimaku_dl.cli.path.exists", return_value=True), \
+             patch("jimaku_dl.cli.subprocess_run") as mock_run:  # Mock subprocess_run
             
             result = main()
 
@@ -413,6 +417,8 @@ class TestCli:
                 "/path/to/video.mkv",
                 "/path/to/subtitle.srt"
             )
+            # Verify MPV was called
+            mock_run.assert_called()
 
     def test_sync_with_ffsubsync_not_available(self):
         """Test sync flag handling when ffsubsync is not available."""
