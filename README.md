@@ -35,9 +35,9 @@ pip install jimaku-dl
 ### Requirements
 
 - Python 3.7+
+- fzf for interactive selection menus (required)
 - MPV for playing videos (optional)
 - ffsubsync for subtitle synchronization (optional)
-- fzf for interactive selection menus (required)
 
 ## Usage
 
@@ -72,6 +72,7 @@ jimaku-dl sync /path/to/video.mkv /path/to/subtitles.srt --output /path/to/outpu
 You'll need a Jimaku API token to use this tool. You can set it in two ways:
 
 1. Using the `--token` flag:
+
    ```bash
    jimaku-dl download /path/to/anime.mkv --token YOUR_TOKEN_HERE
    ```
@@ -96,6 +97,7 @@ You'll need a Jimaku API token to use this tool. You can set it in two ways:
 ### Reusing Existing Synchronized Subtitles
 
 If you run the tool on a file that already has synchronized subtitles, you'll be prompted to:
+
 - Use the existing synced file
 - Create a new synced file
 - Cancel synchronization
@@ -109,16 +111,19 @@ When using the `--play` option, your video starts playing immediately. If you al
 ## Options
 
 ### Global Options
+
 - `-t, --token TOKEN`: Jimaku API token
 - `-l, --log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}`: Set logging level
 
 ### Download Options
+
 - `-d, --dest-dir DIR`: Destination directory for subtitles
 - `-p, --play`: Play media with MPV after download
 - `-s, --sync`: Synchronize subtitles with video
 - `-a, --anilist-id ID`: Specify AniList ID to skip search
 
 ### Sync Options
+
 - `-o, --output PATH`: Output path for synchronized subtitles
 
 ## Contributing
