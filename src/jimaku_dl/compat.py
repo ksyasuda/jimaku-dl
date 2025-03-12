@@ -10,7 +10,18 @@ from typing import Tuple, Union
 
 def is_windows() -> bool:
     """Check if the platform is Windows."""
+    env_platform = os.environ.get("PLATFORM_SYSTEM")
+    if env_platform:
+        return env_platform == "Windows"
     return platform.system() == "Windows"
+
+
+def is_macos() -> bool:
+    """Check if the platform is macOS."""
+    env_platform = os.environ.get("PLATFORM_SYSTEM")
+    if env_platform:
+        return env_platform == "Darwin"
+    return platform.system() == "Darwin"
 
 
 def get_socket_type() -> Tuple[int, int]:
