@@ -176,6 +176,24 @@ def sync_subtitles_thread(
                             "request_id": 3,
                         },
                         {"command": ["set_property", "sid", new_sid], "request_id": 4},
+                        {
+                            "command": [
+                                "osd-msg",
+                                "Subtitle synchronization complete!",
+                            ],
+                            "request_id": 5,
+                        },
+                        {
+                            "command": [
+                                "expand-properties",
+                                "show-text",
+                                "${osd-ass-cc/0}{\\fs20\\b1\\c&CAD3F5&}Subtitle "
+                                "synchronization complete!${osd-ass-cc/1}",
+                                3000,
+                                1,
+                            ],
+                            "request_id": 6,
+                        },
                     ]
                     for cmd in final_commands:
                         if not send_command(cmd):

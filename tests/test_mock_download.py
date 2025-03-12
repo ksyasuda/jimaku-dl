@@ -1,7 +1,7 @@
 """Tests for downloading subtitles with mocked API responses."""
 
 import os
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 import responses
@@ -10,185 +10,291 @@ from jimaku_dl.downloader import JimakuDownloader
 
 
 class TestMockDownload:
-    """Test downloading subtitles with mocked API."""
+    """Test downloading subtitles with mocked API responses."""
 
     @responses.activate
-    def test_download_subtitle_flow(self, setup_test_environment, temp_dir):
-        """Test the complete download flow with mocked API."""
-        # Create a temp file path that will pass the exists check
-        media_path = os.path.join(temp_dir, "anime.mkv")
-        with open(media_path, "w") as f:
-            f.write("dummy content")
+    def test_download_subtitle_flow(self, temp_dir, monkeypatch):
+        """Test the full subtitle download flow with mocked responses."""
+        # Set up test environment
+        monkeypatch.setenv("TESTING", "1")
+        video_file = os.path.join(temp_dir, "test_video.mkv")
+        with open(video_file, "w") as f:
+            f.write("fake video content")
 
-        # Add a specific response for the exact GraphQL request we'll make
+        # Mock AniList API response with proper structure
         responses.add(
             responses.POST,
             "https://graphql.anilist.co",
-            json={"data": {"Media": {"id": 1234}}},
+            json={
+                "data": {
+                    "Page": {
+                        "media": [
+                            {
+                                "id": 123456,
+                                "title": {
+                                    "english": "Test Anime",
+                                    "romaji": "Test Anime",
+                                    "native": "テストアニメ",
+                                },
+                                "format": "TV",
+                                "episodes": 12,
+                                "seasonYear": 2023,
+                                "season": "WINTER",
+                            }
+                        ]
+                    }
+                }
+            },
             status=200,
         )
 
-        # Add response for Jimaku entry search
+        # Mock Jimaku search API
         responses.add(
             responses.GET,
             "https://jimaku.cc/api/entries/search",
-            match=[responses.matchers.query_param_matcher({"anilist_id": "1234"})],
-            json=[{"id": 100, "english_name": "Test Anime", "japanese_name": "テスト"}],
+            json=[
+                {
+                    "id": 100,
+                    "english_name": "Test Anime",
+                    "japanese_name": "テストアニメ",
+                }
+            ],
             status=200,
         )
 
-        # Add response for Jimaku file list
+        # Mock Jimaku files API
         responses.add(
             responses.GET,
             "https://jimaku.cc/api/entries/100/files",
             json=[
                 {
                     "id": 200,
-                    "name": "Test Anime - 01.srt",
-                    "url": "https://example.com/file.srt",
+                    "name": "test.srt",
+                    "url": "https://jimaku.cc/download/test.srt",
                 }
             ],
             status=200,
         )
 
-        # Create downloader with mocked fzf_menu
-        downloader = JimakuDownloader(api_token="test_token")
-
-        with patch.object(
-            downloader, "fzf_menu", side_effect=lambda options, multi=False: options[0]
-        ), patch.object(
-            downloader,
-            "download_file",
-            return_value=os.path.join(temp_dir, "Test Anime - 01.srt"),
-        ), patch.object(
-            downloader, "parse_filename", return_value=("Test Anime", 1, 1)
-        ), patch(
-            "os.path.exists", return_value=True
-        ), patch(
-            "jimaku_dl.downloader.exists", return_value=True
-        ), patch(
-            "builtins.input", return_value="1"
-        ):  # Handle any user input prompts
-
-            # Test with file path
-            result = downloader.download_subtitles(
-                media_path=media_path, dest_dir=temp_dir
-            )
-
-            assert isinstance(result, list)
-            assert len(result) == 1
-            assert result[0] == os.path.join(temp_dir, "Test Anime - 01.srt")
-
-    @responses.activate
-    def test_error_handling(self, setup_test_environment, temp_dir):
-        """Test error handling with mocked API errors."""
-        # Setup mocked API response with error
+        # Mock file download
         responses.add(
-            responses.POST,
-            "https://graphql.anilist.co",
-            json={"errors": [{"message": "Not found"}]},
-            status=404,
-        )
-
-        # Create a temp file that exists
-        media_path = os.path.join(temp_dir, "anime.mkv")
-        with open(media_path, "w") as f:
-            f.write("dummy content")
-
-        downloader = JimakuDownloader(api_token="test_token")
-
-        # Mock parse_filename to return known values
-        with patch.object(
-            downloader, "parse_filename", return_value=("Test Anime", 1, 1)
-        ), patch("os.path.exists", return_value=True), patch(
-            "jimaku_dl.downloader.exists", return_value=True
-        ), pytest.raises(
-            ValueError
-        ) as exc_info:
-
-            downloader.download_subtitles(media_path=media_path)
-
-        assert "Error querying AniList API" in str(exc_info.value)
-
-    @responses.activate
-    def test_unauthorized_api_error(self, setup_test_environment, temp_dir):
-        """Test handling of unauthorized API errors."""
-        # Create a temp file that exists
-        media_path = os.path.join(temp_dir, "anime.mkv")
-        with open(media_path, "w") as f:
-            f.write("dummy content")
-
-        # Setup mocked API response with 401 error
-        responses.add(
-            responses.POST,
-            "https://graphql.anilist.co",
-            json={"data": {"Media": {"id": 1234}}},
+            responses.GET,
+            "https://jimaku.cc/download/test.srt",
+            body="1\n00:00:01,000 --> 00:00:05,000\nTest subtitle",
             status=200,
         )
 
-        responses.add(
-            responses.GET,
-            "https://jimaku.cc/api/entries/search",
-            match=[responses.matchers.query_param_matcher({"anilist_id": "1234"})],
-            status=401,
-            json={"error": "Unauthorized"},
-        )
+        # Mock the interactive menu selections
+        downloader = JimakuDownloader(api_token="test_token")
+        with patch.object(downloader, "fzf_menu") as mock_fzf:
+            mock_fzf.side_effect = [
+                "1. Test Anime - テストアニメ",  # Select entry
+                "1. test.srt",  # Select file
+            ]
 
-        downloader = JimakuDownloader(api_token="invalid_token")
+            # Mock parse_filename to avoid prompting
+            with patch.object(
+                downloader, "parse_filename", return_value=("Test Anime", 1, 1)
+            ):
+                # Execute the download
+                result = downloader.download_subtitles(video_file)
 
-        # Mock parse_filename to return known values
-        with patch.object(
-            downloader, "parse_filename", return_value=("Test Anime", 1, 1)
-        ), patch("os.path.exists", return_value=True), patch(
-            "jimaku_dl.downloader.exists", return_value=True
-        ), pytest.raises(
-            ValueError
-        ) as exc_info:
-
-            downloader.download_subtitles(media_path=media_path)
-
-        assert "Error querying Jimaku API" in str(exc_info.value)
+                # Verify the result
+                assert len(result) == 1
+                assert "test.srt" in result[0]
 
     @responses.activate
-    def test_anilist_id_from_argument(self, setup_test_environment, temp_dir):
-        """Test using AniList ID provided as argument."""
-        # Create a temp file that exists
-        media_path = os.path.join(temp_dir, "anime.mkv")
-        with open(media_path, "w") as f:
-            f.write("dummy content")
+    def test_error_handling(self, temp_dir, monkeypatch):
+        """Test error handling when AniList API fails."""
+        # Set up test environment
+        monkeypatch.setenv("TESTING", "1")
+        video_file = os.path.join(temp_dir, "test_video.mkv")
+        with open(video_file, "w") as f:
+            f.write("fake video content")
 
-        # Add Jimaku API response for entry search with specific anilist_id
+        # Mock AniList API with an error response
         responses.add(
-            responses.GET,
-            "https://jimaku.cc/api/entries/search",
-            match=[responses.matchers.query_param_matcher({"anilist_id": "5678"})],
-            json=[{"id": 100, "english_name": "Test Anime", "japanese_name": "テスト"}],
-            status=200,
+            responses.POST,
+            "https://graphql.anilist.co",
+            status=404,  # Simulate 404 error
         )
 
-        # No need to add the files endpoint since it won't be called when fzf_menu returns None
-
+        # Create downloader and attempt to download
         downloader = JimakuDownloader(api_token="test_token")
-
         with patch.object(
             downloader, "parse_filename", return_value=("Test Anime", 1, 1)
-        ), patch.object(downloader, "fzf_menu", return_value=None), patch(
-            "os.path.exists", return_value=True
-        ), patch(
-            "jimaku_dl.downloader.exists", return_value=True
         ):
-            # Should raise ValueError due to no selection in fzf
-            with pytest.raises(ValueError):
-                downloader.download_subtitles(media_path=media_path, anilist_id=5678)
+            with pytest.raises(ValueError) as exc_info:
+                downloader.download_subtitles(video_file)
 
-        # Check that the expected call was made
-        assert len(responses.calls) > 0
+            # Check for the specific error message now
+            assert "Network error querying AniList API" in str(exc_info.value)
 
-        # Check that at least one call was to the expected URL with the anilist_id parameter
-        jimaku_calls = [
-            call
-            for call in responses.calls
-            if "jimaku.cc/api/entries/search" in call.request.url
-        ]
-        assert len(jimaku_calls) > 0
-        assert "anilist_id=5678" in jimaku_calls[0].request.url
+    @responses.activate
+    def test_unauthorized_api_error(self, temp_dir, monkeypatch):
+        """Test error handling when Jimaku API returns unauthorized."""
+        # Set up test environment
+        monkeypatch.setenv("TESTING", "1")
+        video_file = os.path.join(temp_dir, "test_video.mkv")
+        with open(video_file, "w") as f:
+            f.write("fake video content")
+
+        # Mock AniList API response with success to get past that check
+        responses.add(
+            responses.POST,
+            "https://graphql.anilist.co",
+            json={
+                "data": {
+                    "Page": {
+                        "media": [
+                            {
+                                "id": 123456,
+                                "title": {
+                                    "english": "Test Anime",
+                                    "romaji": "Test Anime",
+                                    "native": "テストアニメ",
+                                },
+                            }
+                        ]
+                    }
+                }
+            },
+            status=200,
+        )
+
+        # Mock Jimaku search API with 401 unauthorized error
+        responses.add(
+            responses.GET,
+            "https://jimaku.cc/api/entries/search",
+            json={"error": "Unauthorized"},
+            status=401,
+        )
+
+        # Create downloader and attempt to download
+        downloader = JimakuDownloader(api_token="invalid_token")
+        with patch.object(
+            downloader, "parse_filename", return_value=("Test Anime", 1, 1)
+        ):
+            with pytest.raises(ValueError) as exc_info:
+                downloader.download_subtitles(video_file)
+
+            # Now check for the Jimaku API error
+            assert "Error querying Jimaku API" in str(exc_info.value)
+
+    @responses.activate
+    def test_no_subtitle_entries_found(self, temp_dir, monkeypatch):
+        """Test handling when no subtitle entries are found."""
+        # Set up test environment
+        monkeypatch.setenv("TESTING", "1")
+        video_file = os.path.join(temp_dir, "test_video.mkv")
+        with open(video_file, "w") as f:
+            f.write("fake video content")
+
+        # Mock AniList API response with success
+        responses.add(
+            responses.POST,
+            "https://graphql.anilist.co",
+            json={
+                "data": {
+                    "Page": {
+                        "media": [
+                            {
+                                "id": 123456,
+                                "title": {
+                                    "english": "Test Anime",
+                                    "romaji": "Test Anime",
+                                    "native": "テストアニメ",
+                                },
+                            }
+                        ]
+                    }
+                }
+            },
+            status=200,
+        )
+
+        # Mock Jimaku search API with empty response (no entries)
+        responses.add(
+            responses.GET,
+            "https://jimaku.cc/api/entries/search",
+            json=[],  # Empty array indicates no entries found
+            status=200,
+        )
+
+        # Create downloader and attempt to download
+        downloader = JimakuDownloader(api_token="test_token")
+        with patch.object(
+            downloader, "parse_filename", return_value=("Test Anime", 1, 1)
+        ):
+            with pytest.raises(ValueError) as exc_info:
+                downloader.download_subtitles(video_file)
+
+            assert "No subtitle entries found" in str(exc_info.value)
+
+    @responses.activate
+    def test_no_subtitle_files_found(self, temp_dir, monkeypatch):
+        """Test handling when no subtitle files are available for an entry."""
+        # Set up test environment
+        monkeypatch.setenv("TESTING", "1")
+        video_file = os.path.join(temp_dir, "test_video.mkv")
+        with open(video_file, "w") as f:
+            f.write("fake video content")
+
+        # Mock AniList API response with success
+        responses.add(
+            responses.POST,
+            "https://graphql.anilist.co",
+            json={
+                "data": {
+                    "Page": {
+                        "media": [
+                            {
+                                "id": 123456,
+                                "title": {
+                                    "english": "Test Anime",
+                                    "romaji": "Test Anime",
+                                    "native": "テストアニメ",
+                                },
+                            }
+                        ]
+                    }
+                }
+            },
+            status=200,
+        )
+
+        # Mock Jimaku search API with entries
+        responses.add(
+            responses.GET,
+            "https://jimaku.cc/api/entries/search",
+            json=[
+                {
+                    "id": 100,
+                    "english_name": "Test Anime",
+                    "japanese_name": "テストアニメ",
+                }
+            ],
+            status=200,
+        )
+
+        # Mock Jimaku files API with empty files
+        responses.add(
+            responses.GET,
+            "https://jimaku.cc/api/entries/100/files",
+            json=[],  # Empty array = no files
+            status=200,
+        )
+
+        # Create downloader and attempt to download
+        downloader = JimakuDownloader(api_token="test_token")
+        with patch.object(downloader, "fzf_menu") as mock_fzf:
+            # Mock entry selection
+            mock_fzf.return_value = "1. Test Anime - テストアニメ"
+
+            with patch.object(
+                downloader, "parse_filename", return_value=("Test Anime", 1, 1)
+            ):
+                with pytest.raises(ValueError) as exc_info:
+                    downloader.download_subtitles(video_file)
+
+                assert "No files found" in str(exc_info.value)

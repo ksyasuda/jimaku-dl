@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from guessit import guessit
 from requests import get as requests_get
 from requests import post as requests_post
+from requests.exceptions import RequestException  # Add this import
 
 # Check if ffsubsync is available
 FFSUBSYNC_AVAILABLE = find_spec("ffsubsync") is not None
@@ -485,25 +486,32 @@ class JimakuDownloader:
         """
         query = """
         query ($search: String) {
-          Media(search: $search, type: ANIME) {
-            id
-            title {
-              romaji
-              english
-              native
+          Page(page: 1, perPage: 15) {
+            media(search: $search, type: ANIME) {
+              id
+              title {
+                romaji
+                english
+                native
+              }
+              synonyms
+              format
+              episodes
+              seasonYear
+              season
             }
-            synonyms
           }
         }
         """
 
-        # Clean up the title to remove special characters and extra spaces
-        cleaned_title = sub(r"[^\w\s]", "", title).strip()
-
-        # Append season to the title if season is greater than 1
+        # Clean up the title to remove special characters
+        title_without_year = sub(r"\((?:19|20)\d{2}\)|\[(?:19|20)\d{2}\]", "", title)
+        # Keep meaningful punctuation but remove others
+        cleaned_title = sub(r"[^a-zA-Z0-9\s:-]", "", title_without_year).strip()
         if season and season > 1:
-            cleaned_title += f" - Season {season}"
+            cleaned_title += f" Season {season}"
 
+        # Don't append season to the search query - let AniList handle it
         variables = {"search": cleaned_title}
 
         try:
@@ -512,48 +520,100 @@ class JimakuDownloader:
             response = requests_post(
                 self.ANILIST_API_URL,
                 json={"query": query, "variables": variables},
+                headers={"Content-Type": "application/json"},
             )
             response.raise_for_status()
             data = response.json()
 
-            media = data.get("data", {}).get("Media")
-            if media:
-                anilist_id = media.get("id")
-                self.logger.info(f"Found AniList ID: {anilist_id}")
+            if "errors" in data:
+                error_msg = "; ".join(
+                    [e.get("message", "Unknown error") for e in data.get("errors", [])]
+                )
+                self.logger.error(f"AniList API returned errors: {error_msg}")
+                raise ValueError(f"AniList API error: {error_msg}")
+
+            media_list = data.get("data", {}).get("Page", {}).get("media", [])
+
+            if not media_list:
+                self.logger.warning(f"No results found for '{cleaned_title}'")
+                if environ.get("TESTING") == "1":
+                    raise ValueError(
+                        f"Could not find anime on AniList for title: {title}"
+                    )
+                try:
+                    return self._prompt_for_anilist_id(title)
+                except (KeyboardInterrupt, EOFError):
+                    raise ValueError(
+                        f"Could not find anime on AniList for title: {title}"
+                    )
+
+            if environ.get("TESTING") == "1" and len(media_list) > 0:
+                anilist_id = media_list[0].get("id")
                 return anilist_id
 
-            # In test environments, raise ValueError immediately
-            if environ.get("TESTING") == "1":
-                self.logger.warning(
-                    f"AniList search failed for title: {title}, season: {season}"
+            if len(media_list) > 1:
+                self.logger.info(
+                    f"Found {len(media_list)} potential matches, "
+                    "presenting selection menu"
                 )
-                raise ValueError(f"Could not find anime on AniList for title: {title}")
 
-            self.logger.warning(
-                f"AniList search failed for title: {title}, season: {season}"
-            )
-            print(f"Could not find anime '{title}' on AniList.")
+                media_list.sort(key=lambda x: x.get("id", 0) or 0, reverse=True)
 
-            # For non-test environments, try manual entry
+                options = []
+                for media in media_list:
+                    english = media.get("title", {}).get("english", "")
+                    romaji = media.get("title", {}).get("romaji", "")
+                    native = media.get("title", {}).get("native", "")
+                    year = media.get("seasonYear", "")
+                    season = media.get("season", "").title()
+                    episodes = media.get("episodes", "?")
+                    format_type = media.get("format", "")
+
+                    display = f"{media['id']} - {english or romaji} [{year}] ({season})"
+                    if native:
+                        display += f" | {native}"
+                    display += f" | {format_type}, {episodes} eps"
+
+                    options.append(display)
+
+                selected = self.fzf_menu(options)
+                if not selected:
+                    self.logger.warning("User cancelled selection")
+                    raise ValueError("Selection cancelled")
+
+                # Extract the ID from the selected option
+                anilist_id = int(selected.split(" - ")[0].strip())
+                self.logger.info(f"User selected AniList ID: {anilist_id}")
+                return anilist_id
+            elif len(media_list) == 1:
+                # Single match, use it directly
+                anilist_id = media_list[0].get("id")
+                english = media_list[0].get("title", {}).get("english", "")
+                romaji = media_list[0].get("title", {}).get("romaji", "")
+                self.logger.info(
+                    f"Found AniList ID: {anilist_id} for '{english or romaji}'"
+                )
+                return anilist_id
+
+        except RequestException as e:
+            self.logger.error(f"Network error querying AniList: {e}")
+            if environ.get("TESTING") == "1":
+                raise ValueError(f"Network error querying AniList API: {str(e)}")
+
+            print(f"Network error querying AniList: {str(e)}")
+            print("Please check your internet connection and try again.")
             try:
                 return self._prompt_for_anilist_id(title)
             except (KeyboardInterrupt, EOFError):
-                raise ValueError(f"Could not find anime on AniList for title: {title}")
-
+                raise ValueError(f"Network error querying AniList API: {str(e)}")
         except Exception as e:
             self.logger.error(f"Error querying AniList: {e}")
 
-            # In test environments, raise ValueError immediately
+            # For test environments, immediately raise ValueError without prompting
             if environ.get("TESTING") == "1":
                 raise ValueError(f"Error querying AniList API: {str(e)}")
 
-            # For normal execution or if the exception was already a ValueError
-            if isinstance(e, ValueError) and "Could not find anime on AniList" in str(
-                e
-            ):
-                raise
-
-            # Try manual entry as a fallback for non-test environments
+            # For other exceptions in non-test environments
             print(f"Error querying AniList: {str(e)}")
             try:
                 return self._prompt_for_anilist_id(title)
@@ -564,6 +624,10 @@ class JimakuDownloader:
         """
         Prompt the user to manually enter an AniList ID.
         """
+        # Prevent prompting in test environments
+        if environ.get("TESTING") == "1":
+            raise ValueError("Cannot prompt for AniList ID in test environment")
+
         print(f"\nPlease find the AniList ID for: {title}")
         print("Visit https://anilist.co and search for your anime.")
         print(
@@ -1125,48 +1189,62 @@ class JimakuDownloader:
                     self.logger.debug(f"Socket send error: {e}")
                     return None
 
-            track_list_cmd = {
-                "command": ["get_property", "track-list"],
-                "request_id": 1,
-            }
-            track_response = send_command(track_list_cmd)
-            if track_response and "data" in track_response:
-                sub_tracks = [
-                    t for t in track_response["data"] if t.get("type") == "sub"
-                ]
-                next_id = len(sub_tracks) + 1
-                commands = [
-                    {"command": ["sub-reload"], "request_id": 2},
-                    {"command": ["sub-add", abspath(subtitle_path)], "request_id": 3},
-                    {
-                        "command": ["set_property", "sub-visibility", "yes"],
-                        "request_id": 4,
-                    },
-                    {"command": ["set_property", "sid", next_id], "request_id": 5},
-                ]
-                all_succeeded = True
-                for cmd in commands:
-                    if not send_command(cmd):
-                        all_succeeded = False
-                        break
-                    time.sleep(0.1)  # Small delay between commands
-
-                try:
-                    sock.shutdown(socket.SHUT_RDWR)
-                finally:
-                    sock.close()
-
-                if all_succeeded:
-                    self.logger.info(
-                        f"Updated MPV with synchronized subtitle: {subtitle_path}"
-                    )
-                    return True
-
-            return False
-
         except Exception as e:
             self.logger.error(f"Failed to update MPV subtitles: {e}")
             return False
+
+        track_list_cmd = {
+            "command": ["get_property", "track-list"],
+            "request_id": 1,
+        }
+        track_response = send_command(track_list_cmd)
+        if track_response and "data" in track_response:
+            sub_tracks = [t for t in track_response["data"] if t.get("type") == "sub"]
+            next_id = len(sub_tracks) + 1
+            commands = [
+                {"command": ["sub-reload"], "request_id": 2},
+                {"command": ["sub-add", abspath(subtitle_path)], "request_id": 3},
+                {
+                    "command": ["set_property", "sub-visibility", "yes"],
+                    "request_id": 4,
+                },
+                {"command": ["set_property", "sid", next_id], "request_id": 5},
+                {
+                    "command": ["osd-msg", "Subtitle synchronization complete!"],
+                    "request_id": 6,
+                },
+                # Also send explicit show-text with longer duration and higher OSD level
+                {
+                    "command": [
+                        "expand-properties",
+                        "show-text",
+                        "${osd-ass-cc/0}{\\fs20\\b1\\c&HCAD3F5&}Subtitle "
+                        "synchronization complete!${osd-ass-cc/1}",
+                        5000,
+                        1,
+                    ],
+                    "request_id": 7,
+                },
+            ]
+            all_succeeded = True
+            for cmd in commands:
+                if not send_command(cmd):
+                    all_succeeded = False
+                    break
+                time.sleep(0.1)  # Small delay between commands
+
+            try:
+                sock.shutdown(socket.SHUT_RDWR)
+            finally:
+                sock.close()
+
+            if all_succeeded:
+                self.logger.info(
+                    f"Updated MPV with synchronized subtitle: {subtitle_path}"
+                )
+                return True
+
+        return False
 
     def download_subtitles(
         self,

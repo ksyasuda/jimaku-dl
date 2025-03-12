@@ -61,17 +61,25 @@ def mock_requests():
 
 @pytest.fixture
 def mock_anilist_response():
-    """Return a mock response for AniList API."""
+    """Mock response for AniList API."""
     return {
         "data": {
-            "Media": {
-                "id": 123456,
-                "title": {
-                    "romaji": "Test Anime",
-                    "english": "Test Anime Show",
-                    "native": "テストアニメ",
-                },
-                "synonyms": ["Test Show"],
+            "Page": {
+                "media": [
+                    {
+                        "id": 123456,
+                        "title": {
+                            "english": "Test Anime Show",
+                            "romaji": "Test Anime",
+                            "native": "テストアニメ",
+                        },
+                        "synonyms": ["Test Show"],
+                        "format": "TV",
+                        "episodes": 12,
+                        "seasonYear": 2023,
+                        "season": "WINTER",
+                    }
+                ]
             }
         }
     }
