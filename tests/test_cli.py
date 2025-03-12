@@ -8,12 +8,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from jimaku_dl import __version__, JimakuDownloader
-from jimaku_dl.cli import (
-    main, 
-    parse_args, 
-    sync_subtitles_thread,
-    run_background_sync
-)
+from jimaku_dl.cli import main, parse_args, sync_subtitles_thread, run_background_sync
 
 
 @pytest.fixture(autouse=True)
@@ -23,6 +18,7 @@ def isolate_tests():
     yield
     # Teardown
     from unittest import mock
+
     mock.patch.stopall()
 
 
@@ -35,7 +31,7 @@ class TestCli:
         mock_downloader.return_value.download_subtitles.return_value = [
             "/path/to/subtitle.srt"
         ]
-        
+
         # Create args with the required command and attributes
         mock_args = MagicMock(
             command="download",
@@ -45,15 +41,16 @@ class TestCli:
             token="test_token",
             log_level="INFO",
             anilist_id=None,
-            sync=False
+            sync=False,
         )
-        
+
         # Mock both os.path.exists and cli.path.exists since both might be used
-        with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), \
-             patch("jimaku_dl.cli.parse_args", return_value=mock_args), \
-             patch("os.path.exists", return_value=True), \
-             patch("jimaku_dl.cli.path.exists", return_value=True):
-            
+        with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), patch(
+            "jimaku_dl.cli.parse_args", return_value=mock_args
+        ), patch("os.path.exists", return_value=True), patch(
+            "jimaku_dl.cli.path.exists", return_value=True
+        ):
+
             result = main()
             assert result == 0
             mock_downloader.assert_called_once_with(
@@ -64,7 +61,7 @@ class TestCli:
                 dest_dir=None,
                 play=False,
                 anilist_id=None,
-                sync=False
+                sync=False,
             )
 
     def test_main_error(self):
@@ -73,7 +70,7 @@ class TestCli:
         mock_downloader.return_value.download_subtitles.side_effect = ValueError(
             "Test error"
         )
-        
+
         mock_args = MagicMock(
             command="download",
             media_path="/path/to/video.mkv",
@@ -82,15 +79,17 @@ class TestCli:
             token="test_token",
             log_level="INFO",
             anilist_id=None,
-            sync=False
+            sync=False,
         )
-        
-        with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), \
-             patch("jimaku_dl.cli.parse_args", return_value=mock_args), \
-             patch("os.path.exists", return_value=True), \
-             patch("jimaku_dl.cli.path.exists", return_value=True), \
-             patch("builtins.print") as mock_print:
-            
+
+        with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), patch(
+            "jimaku_dl.cli.parse_args", return_value=mock_args
+        ), patch("os.path.exists", return_value=True), patch(
+            "jimaku_dl.cli.path.exists", return_value=True
+        ), patch(
+            "builtins.print"
+        ) as mock_print:
+
             result = main()
             assert result == 1
             mock_print.assert_called_with("Error: Test error")
@@ -101,7 +100,7 @@ class TestCli:
         mock_downloader.return_value.download_subtitles.side_effect = Exception(
             "Unexpected error"
         )
-        
+
         mock_args = MagicMock(
             command="download",
             media_path="/path/to/video.mkv",
@@ -110,15 +109,17 @@ class TestCli:
             token="test_token",
             log_level="INFO",
             anilist_id=None,
-            sync=False
+            sync=False,
         )
-        
-        with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), \
-             patch("jimaku_dl.cli.parse_args", return_value=mock_args), \
-             patch("os.path.exists", return_value=True), \
-             patch("jimaku_dl.cli.path.exists", return_value=True), \
-             patch("builtins.print") as mock_print:
-            
+
+        with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), patch(
+            "jimaku_dl.cli.parse_args", return_value=mock_args
+        ), patch("os.path.exists", return_value=True), patch(
+            "jimaku_dl.cli.path.exists", return_value=True
+        ), patch(
+            "builtins.print"
+        ) as mock_print:
+
             result = main()
             assert result == 1
             mock_print.assert_called_with("Error: Unexpected error")
@@ -129,7 +130,7 @@ class TestCli:
         mock_downloader.return_value.download_subtitles.return_value = [
             "/path/to/subtitle.srt"
         ]
-        
+
         # Create args with the required command and attributes
         mock_args = MagicMock(
             command="download",
@@ -139,15 +140,16 @@ class TestCli:
             token="test_token",
             log_level="INFO",
             anilist_id=123456,
-            sync=False
+            sync=False,
         )
-        
+
         # Mock both os.path.exists and cli.path.exists for path check
-        with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), \
-             patch("jimaku_dl.cli.parse_args", return_value=mock_args), \
-             patch("os.path.exists", return_value=True), \
-             patch("jimaku_dl.cli.path.exists", return_value=True):
-            
+        with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), patch(
+            "jimaku_dl.cli.parse_args", return_value=mock_args
+        ), patch("os.path.exists", return_value=True), patch(
+            "jimaku_dl.cli.path.exists", return_value=True
+        ):
+
             result = main()
 
             assert result == 0
@@ -156,7 +158,7 @@ class TestCli:
                 dest_dir=None,
                 play=False,
                 anilist_id=123456,
-                sync=False
+                sync=False,
             )
 
     def test_dest_arg(self):
@@ -165,7 +167,7 @@ class TestCli:
         mock_downloader.return_value.download_subtitles.return_value = [
             "/custom/path/subtitle.srt"
         ]
-        
+
         # Create args with the required command and attributes
         mock_args = MagicMock(
             command="download",
@@ -175,15 +177,16 @@ class TestCli:
             token="test_token",
             log_level="INFO",
             anilist_id=None,
-            sync=False
+            sync=False,
         )
-        
+
         # Patch jimaku_dl.cli.parse_args directly
-        with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), \
-             patch("jimaku_dl.cli.parse_args", return_value=mock_args), \
-             patch("os.path.exists", return_value=True), \
-             patch("jimaku_dl.cli.path.exists", return_value=True):
-            
+        with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), patch(
+            "jimaku_dl.cli.parse_args", return_value=mock_args
+        ), patch("os.path.exists", return_value=True), patch(
+            "jimaku_dl.cli.path.exists", return_value=True
+        ):
+
             result = main()
 
             assert result == 0
@@ -192,7 +195,7 @@ class TestCli:
                 dest_dir="/custom/path",
                 play=False,
                 anilist_id=None,
-                sync=False
+                sync=False,
             )
 
     def test_play_arg(self):
@@ -203,7 +206,7 @@ class TestCli:
         ]
         # Add mock for get_track_ids
         mock_downloader.return_value.get_track_ids.return_value = (1, 2)  # sid, aid
-        
+
         # Create args with the required command and attributes
         mock_args = MagicMock(
             command="download",
@@ -213,16 +216,18 @@ class TestCli:
             token="test_token",
             log_level="INFO",
             anilist_id=None,
-            sync=False
+            sync=False,
         )
-        
+
         # Add mock for subprocess_run to prevent FileNotFoundError
-        with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), \
-             patch("jimaku_dl.cli.parse_args", return_value=mock_args), \
-             patch("os.path.exists", return_value=True), \
-             patch("jimaku_dl.cli.path.exists", return_value=True), \
-             patch("jimaku_dl.cli.subprocess_run") as mock_run:  # Mock subprocess_run
-            
+        with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), patch(
+            "jimaku_dl.cli.parse_args", return_value=mock_args
+        ), patch("os.path.exists", return_value=True), patch(
+            "jimaku_dl.cli.path.exists", return_value=True
+        ), patch(
+            "jimaku_dl.cli.subprocess_run"
+        ) as mock_run:  # Mock subprocess_run
+
             result = main()
 
             assert result == 0
@@ -231,12 +236,11 @@ class TestCli:
                 dest_dir=None,
                 play=False,  # We handle playback ourselves
                 anilist_id=None,
-                sync=False
+                sync=False,
             )
             # Verify get_track_ids was called
             mock_downloader.return_value.get_track_ids.assert_called_once_with(
-                "/path/to/video.mkv",
-                "/path/to/subtitle.srt"
+                "/path/to/video.mkv", "/path/to/subtitle.srt"
             )
             # Verify MPV was called with the right arguments
             mock_run.assert_called()
@@ -247,7 +251,7 @@ class TestCli:
         mock_downloader.return_value.download_subtitles.return_value = [
             "/path/to/subtitle.srt"
         ]
-        
+
         # Create args with the required command and attributes
         mock_args = MagicMock(
             command="download",
@@ -257,15 +261,16 @@ class TestCli:
             token="custom_token",
             log_level="INFO",
             anilist_id=None,
-            sync=False
+            sync=False,
         )
-        
+
         # Patch jimaku_dl.cli.parse_args directly
-        with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), \
-             patch("jimaku_dl.cli.parse_args", return_value=mock_args), \
-             patch("os.path.exists", return_value=True), \
-             patch("jimaku_dl.cli.path.exists", return_value=True):
-            
+        with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), patch(
+            "jimaku_dl.cli.parse_args", return_value=mock_args
+        ), patch("os.path.exists", return_value=True), patch(
+            "jimaku_dl.cli.path.exists", return_value=True
+        ):
+
             result = main()
 
             assert result == 0
@@ -279,7 +284,7 @@ class TestCli:
         mock_downloader.return_value.download_subtitles.return_value = [
             "/path/to/subtitle.srt"
         ]
-        
+
         # Create args with the required command and attributes
         mock_args = MagicMock(
             command="download",
@@ -289,15 +294,16 @@ class TestCli:
             token="test_token",
             log_level="DEBUG",
             anilist_id=None,
-            sync=False
+            sync=False,
         )
-        
+
         # Patch jimaku_dl.cli.parse_args directly
-        with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), \
-             patch("jimaku_dl.cli.parse_args", return_value=mock_args), \
-             patch("os.path.exists", return_value=True), \
-             patch("jimaku_dl.cli.path.exists", return_value=True):
-            
+        with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), patch(
+            "jimaku_dl.cli.parse_args", return_value=mock_args
+        ), patch("os.path.exists", return_value=True), patch(
+            "jimaku_dl.cli.path.exists", return_value=True
+        ):
+
             result = main()
 
             assert result == 0
@@ -309,11 +315,11 @@ class TestCli:
         """Test CLI with version argument."""
         # Create a mock that will be called and track it was called
         mock_parse_args = MagicMock(side_effect=SystemExit(0))
-        
+
         with patch("jimaku_dl.cli.parse_args", mock_parse_args):
             # When main() calls parse_args, it should catch the SystemExit and return 0
             result = main()
-        
+
         # Check that parse_args was called and main returned the exit code
         assert mock_parse_args.called
         assert result == 0
@@ -322,21 +328,22 @@ class TestCli:
         """Test CLI with help argument."""
         # Similar approach to version test
         mock_parse_args = MagicMock(side_effect=SystemExit(0))
-        
+
         with patch("jimaku_dl.cli.parse_args", mock_parse_args):
             result = main()
-        
+
         assert mock_parse_args.called
         assert result == 0
 
     def test_keyboard_interrupt(self):
         """Test handling of keyboard interrupt."""
+
         # Create a custom exception instead of using real KeyboardInterrupt
         class MockKeyboardInterrupt(Exception):
             # Override __str__ to match KeyboardInterrupt's empty string representation
             def __str__(self):
                 return ""
-        
+
         # Create args with the required command and attributes
         mock_args = MagicMock(
             command="download",
@@ -346,26 +353,29 @@ class TestCli:
             token="test_token",
             log_level="INFO",
             anilist_id=None,
-            sync=False
+            sync=False,
         )
-        
+
         # Create a mock downloader with our safe exception
         mock_downloader = MagicMock()
         mock_instance = MagicMock()
         mock_instance.download_subtitles.side_effect = MockKeyboardInterrupt()
         mock_downloader.return_value = mock_instance
-        
+
         # Patch KeyboardInterrupt in CLI module's scope and mock path existence
-        with patch("jimaku_dl.cli.KeyboardInterrupt", MockKeyboardInterrupt), \
-             patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), \
-             patch("jimaku_dl.cli.parse_args", return_value=mock_args), \
-             patch("os.path.exists", return_value=True), \
-             patch("jimaku_dl.cli.path.exists", return_value=True), \
-             patch("builtins.print") as mock_print:
-            
+        with patch("jimaku_dl.cli.KeyboardInterrupt", MockKeyboardInterrupt), patch(
+            "jimaku_dl.cli.JimakuDownloader", mock_downloader
+        ), patch("jimaku_dl.cli.parse_args", return_value=mock_args), patch(
+            "os.path.exists", return_value=True
+        ), patch(
+            "jimaku_dl.cli.path.exists", return_value=True
+        ), patch(
+            "builtins.print"
+        ) as mock_print:
+
             # Call the main function which should handle our mocked exception
             result = main()
-            
+
             # Verify result code
             assert result == 1
             # Verify the correct error message
@@ -379,7 +389,7 @@ class TestCli:
         ]
         # Add mock for get_track_ids since play=True
         mock_downloader.return_value.get_track_ids.return_value = (1, 2)  # sid, aid
-        
+
         # Create args with the required command and attributes
         mock_args = MagicMock(
             command="download",
@@ -389,16 +399,18 @@ class TestCli:
             token="short_token",
             log_level="DEBUG",
             anilist_id=789,
-            sync=False
+            sync=False,
         )
-        
+
         # Add mock for subprocess_run to prevent FileNotFoundError
-        with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), \
-             patch("jimaku_dl.cli.parse_args", return_value=mock_args), \
-             patch("os.path.exists", return_value=True), \
-             patch("jimaku_dl.cli.path.exists", return_value=True), \
-             patch("jimaku_dl.cli.subprocess_run") as mock_run:  # Mock subprocess_run
-            
+        with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), patch(
+            "jimaku_dl.cli.parse_args", return_value=mock_args
+        ), patch("os.path.exists", return_value=True), patch(
+            "jimaku_dl.cli.path.exists", return_value=True
+        ), patch(
+            "jimaku_dl.cli.subprocess_run"
+        ) as mock_run:  # Mock subprocess_run
+
             result = main()
 
             assert result == 0
@@ -410,12 +422,11 @@ class TestCli:
                 dest_dir="/custom/path",
                 play=False,  # We handle playback ourselves
                 anilist_id=789,
-                sync=False
+                sync=False,
             )
             # Verify get_track_ids was called since play=True
             mock_downloader.return_value.get_track_ids.assert_called_once_with(
-                "/path/to/video.mkv",
-                "/path/to/subtitle.srt"
+                "/path/to/video.mkv", "/path/to/subtitle.srt"
             )
             # Verify MPV was called
             mock_run.assert_called()
@@ -423,9 +434,14 @@ class TestCli:
     def test_sync_with_ffsubsync_not_available(self):
         """Test sync flag handling when ffsubsync is not available."""
         mock_downloader = MagicMock()
-        mock_downloader.return_value.download_subtitles.return_value = ["/path/to/subtitle.srt"]
-        mock_downloader.return_value.get_track_ids.return_value = (1, 2)  # Add track IDs since play=True
-        
+        mock_downloader.return_value.download_subtitles.return_value = [
+            "/path/to/subtitle.srt"
+        ]
+        mock_downloader.return_value.get_track_ids.return_value = (
+            1,
+            2,
+        )  # Add track IDs since play=True
+
         mock_args = MagicMock(
             media_path="/path/to/video.mkv",
             dest_dir=None,
@@ -433,36 +449,42 @@ class TestCli:
             token="test_token",
             log_level="INFO",
             anilist_id=None,
-            sync=True
+            sync=True,
         )
-        
-        with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), \
-             patch("jimaku_dl.cli.parse_args", return_value=mock_args), \
-             patch("jimaku_dl.cli.FFSUBSYNC_AVAILABLE", False), \
-             patch("os.path.exists", return_value=True), \
-             patch("jimaku_dl.cli.path.exists", return_value=True), \
-             patch("jimaku_dl.cli.subprocess_run"), \
-             patch("builtins.print") as mock_print:
-            
+
+        with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), patch(
+            "jimaku_dl.cli.parse_args", return_value=mock_args
+        ), patch("jimaku_dl.cli.FFSUBSYNC_AVAILABLE", False), patch(
+            "os.path.exists", return_value=True
+        ), patch(
+            "jimaku_dl.cli.path.exists", return_value=True
+        ), patch(
+            "jimaku_dl.cli.subprocess_run"
+        ), patch(
+            "builtins.print"
+        ) as mock_print:
+
             result = main()
             assert result == 0
-            mock_print.assert_any_call("Warning: ffsubsync is not installed. Synchronization will be skipped.")
+            mock_print.assert_any_call(
+                "Warning: ffsubsync is not installed. Synchronization will be skipped."
+            )
             mock_print.assert_any_call("Install it with: pip install ffsubsync")
-            
+
             # Verify download was called with sync=False
             mock_downloader.return_value.download_subtitles.assert_called_once_with(
                 "/path/to/video.mkv",
                 dest_dir=None,
                 play=False,  # Should be False since we handle playback ourselves
                 anilist_id=None,
-                sync=False  # Should be False since ffsubsync is not available
+                sync=False,  # Should be False since ffsubsync is not available
             )
 
     def test_no_subtitles_downloaded(self):
         """Test handling when no subtitles are downloaded."""
         mock_downloader = MagicMock()
         mock_downloader.return_value.download_subtitles.return_value = []
-        
+
         mock_args = MagicMock(
             media_path="/path/to/video.mkv",
             dest_dir=None,
@@ -470,15 +492,17 @@ class TestCli:
             token="test_token",
             log_level="INFO",
             anilist_id=None,
-            sync=False
+            sync=False,
         )
-        
-        with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), \
-             patch("jimaku_dl.cli.parse_args", return_value=mock_args), \
-             patch("os.path.exists", return_value=True), \
-             patch("jimaku_dl.cli.path.exists", return_value=True), \
-             patch("builtins.print") as mock_print:
-            
+
+        with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), patch(
+            "jimaku_dl.cli.parse_args", return_value=mock_args
+        ), patch("os.path.exists", return_value=True), patch(
+            "jimaku_dl.cli.path.exists", return_value=True
+        ), patch(
+            "builtins.print"
+        ) as mock_print:
+
             result = main()
             assert result == 1
             mock_print.assert_called_with("No subtitles were downloaded")
@@ -486,9 +510,11 @@ class TestCli:
     def test_mpv_not_found(self):
         """Test handling when MPV is not found."""
         mock_downloader = MagicMock()
-        mock_downloader.return_value.download_subtitles.return_value = ["/path/to/subtitle.srt"]
+        mock_downloader.return_value.download_subtitles.return_value = [
+            "/path/to/subtitle.srt"
+        ]
         mock_downloader.return_value.get_track_ids.return_value = (1, 2)
-        
+
         mock_args = MagicMock(
             media_path="/path/to/video.mkv",
             dest_dir=None,
@@ -496,25 +522,32 @@ class TestCli:
             token="test_token",
             log_level="INFO",
             anilist_id=None,
-            sync=False
+            sync=False,
         )
-        
-        with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), \
-             patch("jimaku_dl.cli.parse_args", return_value=mock_args), \
-             patch("os.path.exists", return_value=True), \
-             patch("jimaku_dl.cli.path.exists", return_value=True), \
-             patch("jimaku_dl.cli.subprocess_run", side_effect=FileNotFoundError), \
-             patch("builtins.print") as mock_print:
-            
+
+        with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), patch(
+            "jimaku_dl.cli.parse_args", return_value=mock_args
+        ), patch("os.path.exists", return_value=True), patch(
+            "jimaku_dl.cli.path.exists", return_value=True
+        ), patch(
+            "jimaku_dl.cli.subprocess_run", side_effect=FileNotFoundError
+        ), patch(
+            "builtins.print"
+        ) as mock_print:
+
             result = main()
             assert result == 1
-            mock_print.assert_called_with("Warning: MPV not found. Could not play video.")
+            mock_print.assert_called_with(
+                "Warning: MPV not found. Could not play video."
+            )
 
     def test_play_with_directory(self):
         """Test play flag with directory input."""
         mock_downloader = MagicMock()
-        mock_downloader.return_value.download_subtitles.return_value = ["/path/to/subtitle.srt"]
-        
+        mock_downloader.return_value.download_subtitles.return_value = [
+            "/path/to/subtitle.srt"
+        ]
+
         mock_args = MagicMock(
             media_path="/path/to/anime/directory",
             dest_dir=None,
@@ -522,19 +555,24 @@ class TestCli:
             token="test_token",
             log_level="INFO",
             anilist_id=None,
-            sync=False
+            sync=False,
         )
-        
-        with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), \
-             patch("jimaku_dl.cli.parse_args", return_value=mock_args), \
-             patch("os.path.exists", return_value=True), \
-             patch("jimaku_dl.cli.path.exists", return_value=True), \
-             patch("jimaku_dl.cli.path.isdir", return_value=True), \
-             patch("builtins.print") as mock_print:
-            
+
+        with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), patch(
+            "jimaku_dl.cli.parse_args", return_value=mock_args
+        ), patch("os.path.exists", return_value=True), patch(
+            "jimaku_dl.cli.path.exists", return_value=True
+        ), patch(
+            "jimaku_dl.cli.path.isdir", return_value=True
+        ), patch(
+            "builtins.print"
+        ) as mock_print:
+
             result = main()
             assert result == 0
-            mock_print.assert_called_with("Cannot play media with MPV when input is a directory. Skipping playback.")
+            mock_print.assert_called_with(
+                "Cannot play media with MPV when input is a directory. Skipping playback."
+            )
 
     def test_missing_media_path(self):
         """Test handling of missing media path."""
@@ -545,25 +583,31 @@ class TestCli:
             token="test_token",
             log_level="INFO",
             anilist_id=None,
-            sync=False
+            sync=False,
         )
-        
-        with patch("jimaku_dl.cli.JimakuDownloader", MagicMock()), \
-             patch("jimaku_dl.cli.parse_args", return_value=mock_args), \
-             patch("os.path.exists", return_value=False), \
-             patch("jimaku_dl.cli.path.exists", return_value=False), \
-             patch("builtins.print") as mock_print:
-            
+
+        with patch("jimaku_dl.cli.JimakuDownloader", MagicMock()), patch(
+            "jimaku_dl.cli.parse_args", return_value=mock_args
+        ), patch("os.path.exists", return_value=False), patch(
+            "jimaku_dl.cli.path.exists", return_value=False
+        ), patch(
+            "builtins.print"
+        ) as mock_print:
+
             result = main()
             assert result == 1
-            mock_print.assert_called_with("Error: Path '/path/does/not/exist' does not exist")
+            mock_print.assert_called_with(
+                "Error: Path '/path/does/not/exist' does not exist"
+            )
 
     def test_sync_with_play(self):
         """Test sync option with play flag."""
         mock_downloader = MagicMock()
-        mock_downloader.return_value.download_subtitles.return_value = ["/path/to/subtitle.srt"]
+        mock_downloader.return_value.download_subtitles.return_value = [
+            "/path/to/subtitle.srt"
+        ]
         mock_downloader.return_value.get_track_ids.return_value = (1, 2)
-        
+
         mock_args = MagicMock(
             media_path="/path/to/video.mkv",
             dest_dir=None,
@@ -571,17 +615,21 @@ class TestCli:
             token="test_token",
             log_level="INFO",
             anilist_id=None,
-            sync=True
+            sync=True,
         )
-        
-        with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), \
-             patch("jimaku_dl.cli.parse_args", return_value=mock_args), \
-             patch("jimaku_dl.cli.FFSUBSYNC_AVAILABLE", True), \
-             patch("os.path.exists", return_value=True), \
-             patch("jimaku_dl.cli.path.exists", return_value=True), \
-             patch("jimaku_dl.cli.subprocess_run"), \
-             patch("jimaku_dl.cli.run_background_sync") as mock_sync:
-            
+
+        with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), patch(
+            "jimaku_dl.cli.parse_args", return_value=mock_args
+        ), patch("jimaku_dl.cli.FFSUBSYNC_AVAILABLE", True), patch(
+            "os.path.exists", return_value=True
+        ), patch(
+            "jimaku_dl.cli.path.exists", return_value=True
+        ), patch(
+            "jimaku_dl.cli.subprocess_run"
+        ), patch(
+            "jimaku_dl.cli.run_background_sync"
+        ) as mock_sync:
+
             result = main()
             assert result == 0
             mock_sync.assert_called_once()
@@ -590,34 +638,34 @@ class TestCli:
         """Test socket communication in background sync thread."""
         mock_sock = MagicMock()
         mock_sock.recv.return_value = b'{"data": null}'  # Provide a default response
-        
-        with patch("socket.socket", return_value=mock_sock), \
-             patch("os.path.exists", return_value=True), \
-             patch("jimaku_dl.cli.subprocess_run") as mock_run, \
-             patch("jimaku_dl.cli.sync_subtitles_thread") as mock_sync_thread, \
-             patch("time.sleep"):  # Prevent actual sleep calls
-            
+
+        with patch("socket.socket", return_value=mock_sock), patch(
+            "os.path.exists", return_value=True
+        ), patch("jimaku_dl.cli.subprocess_run") as mock_run, patch(
+            "jimaku_dl.cli.sync_subtitles_thread"
+        ) as mock_sync_thread, patch(
+            "time.sleep"
+        ):  # Prevent actual sleep calls
+
             # Mock successful ffsubsync run
             mock_run.return_value = MagicMock(
-                returncode=0,
-                stdout="Sync successful",
-                stderr=""
+                returncode=0, stdout="Sync successful", stderr=""
             )
-            
+
             # Call the sync thread function
             run_background_sync(
                 "/path/to/video.mkv",
                 "/path/to/subtitle.srt",
                 "/path/to/output.srt",
-                "/tmp/mpv.sock"
+                "/tmp/mpv.sock",
             )
-            
+
             # Verify the thread was created with correct arguments
             mock_sync_thread.assert_called_once_with(
                 "/path/to/video.mkv",
                 "/path/to/subtitle.srt",
                 "/path/to/output.srt",
-                "/tmp/mpv.sock"
+                "/tmp/mpv.sock",
             )
 
     def test_sync_thread_command_success(self):
@@ -626,15 +674,15 @@ class TestCli:
         with patch("threading.Thread") as mock_thread:
             mock_thread_instance = MagicMock()
             mock_thread.return_value = mock_thread_instance
-            
+
             # Call the function under test
             run_background_sync(
                 "/path/to/video.mkv",
                 "/path/to/subtitle.srt",
                 "/path/to/output.srt",
-                "/tmp/mpv.sock"
+                "/tmp/mpv.sock",
             )
-            
+
             # Verify thread creation with correct parameters
             mock_thread.assert_called_once()
             assert mock_thread.call_args[1]["daemon"] is True
@@ -643,7 +691,7 @@ class TestCli:
                 "/path/to/video.mkv",
                 "/path/to/subtitle.srt",
                 "/path/to/output.srt",
-                "/tmp/mpv.sock"
+                "/tmp/mpv.sock",
             )
             # Verify thread started
             mock_thread_instance.start.assert_called_once()
@@ -654,14 +702,14 @@ class TestCli:
         with patch("threading.Thread") as mock_thread:
             mock_thread_instance = MagicMock()
             mock_thread.return_value = mock_thread_instance
-            
+
             run_background_sync(
                 "/path/to/video.mkv",
                 "/path/to/subtitle.srt",
                 "/path/to/output.srt",
-                "/tmp/mpv.sock"
+                "/tmp/mpv.sock",
             )
-            
+
             # Verify a thread is created with the right parameters
             mock_thread.assert_called_once()
             assert mock_thread.call_args[1]["daemon"] is True
@@ -675,16 +723,16 @@ class TestCli:
                 "/path/to/video.mkv",
                 "/path/to/subtitle.srt",
                 "/path/to/output.srt",
-                "/tmp/mpv.sock"
+                "/tmp/mpv.sock",
             )
-            
+
             # Verify thread creation with correct args
             mock_thread.assert_called_once()
             assert mock_thread.call_args[1]["args"] == (
                 "/path/to/video.mkv",
                 "/path/to/subtitle.srt",
                 "/path/to/output.srt",
-                "/tmp/mpv.sock"
+                "/tmp/mpv.sock",
             )
 
     def test_sync_thread_socket_timeout(self):
@@ -695,9 +743,9 @@ class TestCli:
                 "/path/to/video.mkv",
                 "/path/to/subtitle.srt",
                 "/path/to/output.srt",
-                "/tmp/mpv.sock"
+                "/tmp/mpv.sock",
             )
-            
+
             # Verify thread is created with the right function
             mock_thread.assert_called_once()
             mock_thread.return_value.start.assert_called_once()
@@ -708,12 +756,12 @@ class TestCli:
         with patch("threading.Thread") as mock_thread:
             # Call run_background_sync which creates a thread
             run_background_sync(
-                "/path/to/video.mkv", 
+                "/path/to/video.mkv",
                 "/path/to/subtitle.srt",
                 "/path/to/output.srt",
-                "/tmp/mpv.sock"
+                "/tmp/mpv.sock",
             )
-            
+
             # Assert the thread is created with the right parameters
             mock_thread.assert_called_once()
             assert sync_subtitles_thread == mock_thread.call_args[1]["target"]
@@ -726,10 +774,10 @@ class TestCli:
             run_background_sync(
                 "/path/to/video.mkv",
                 "/path/to/subtitle.srt",
-                "/path/to/output.srt", 
-                "/tmp/mpv.sock"
+                "/path/to/output.srt",
+                "/tmp/mpv.sock",
             )
-            
+
             # Verify thread creation
             mock_thread.assert_called_once()
             mock_thread.return_value.start.assert_called_once()
@@ -742,9 +790,9 @@ class TestCli:
                 "/path/to/video.mkv",
                 "/path/to/subtitle.srt",
                 "/path/to/output.srt",
-                "/tmp/mpv.sock"
+                "/tmp/mpv.sock",
             )
-            
+
             # Verify thread creation
             mock_thread.assert_called_once()
             assert mock_thread.call_args[1]["daemon"] is True
@@ -759,40 +807,46 @@ from jimaku_dl.cli import parse_args, main
 
 class TestParseArgs:
     """Tests for the parse_args function"""
-    
-    @mock.patch('jimaku_dl.cli.path.exists')
+
+    @mock.patch("jimaku_dl.cli.path.exists")
     def test_legacy_mode_with_file_path(self, mock_exists):
         """Test legacy mode detection with a file path"""
         mock_exists.return_value = True
-        args = parse_args(['/path/to/video.mkv', '--play'])
-        
-        assert args.media_path == '/path/to/video.mkv'
+        args = parse_args(["/path/to/video.mkv", "--play"])
+
+        assert args.media_path == "/path/to/video.mkv"
         assert args.play is True
 
     def test_media_path_arg(self):
         """Test with media_path argument"""
-        args = parse_args(['/path/to/video.mkv', '--sync'])
-        
-        assert args.media_path == '/path/to/video.mkv'
+        args = parse_args(["/path/to/video.mkv", "--sync"])
+
+        assert args.media_path == "/path/to/video.mkv"
         assert args.sync is True
-    
+
     def test_invalid_path(self):
         """Test handling of invalid paths"""
         with pytest.raises(SystemExit):
-            parse_args(['--play'])  # Missing required media_path argument
+            parse_args(["--play"])  # Missing required media_path argument
 
     def test_all_options(self):
         """Test parsing all available command line options."""
-        args = parse_args([
-            "/path/to/video.mkv",
-            "--token", "test_token",
-            "--log-level", "DEBUG",
-            "--dest-dir", "/custom/path",
-            "--play",
-            "--sync",
-            "--anilist-id", "12345"
-        ])
-        
+        args = parse_args(
+            [
+                "/path/to/video.mkv",
+                "--token",
+                "test_token",
+                "--log-level",
+                "DEBUG",
+                "--dest-dir",
+                "/custom/path",
+                "--play",
+                "--sync",
+                "--anilist-id",
+                "12345",
+            ]
+        )
+
         assert args.media_path == "/path/to/video.mkv"
         assert args.token == "test_token"
         assert args.log_level == "DEBUG"
@@ -803,16 +857,22 @@ class TestParseArgs:
 
     def test_short_options(self):
         """Test parsing short form options."""
-        args = parse_args([
-            "/path/to/video.mkv",
-            "-t", "test_token",
-            "-l", "DEBUG",
-            "-d", "/custom/path",
-            "-p",
-            "-s",
-            "-a", "12345"
-        ])
-        
+        args = parse_args(
+            [
+                "/path/to/video.mkv",
+                "-t",
+                "test_token",
+                "-l",
+                "DEBUG",
+                "-d",
+                "/custom/path",
+                "-p",
+                "-s",
+                "-a",
+                "12345",
+            ]
+        )
+
         assert args.media_path == "/path/to/video.mkv"
         assert args.token == "test_token"
         assert args.log_level == "DEBUG"
@@ -831,21 +891,21 @@ class TestSyncThread:
         with patch("jimaku_dl.cli.sync_subtitles_thread") as mock_sync:
             # Set up our expectations
             mock_sync.return_value = None
-            
+
             # Call the function that would normally create the thread
             run_background_sync(
                 "/path/to/video.mkv",
                 "/path/to/subtitle.srt",
                 "/path/to/output.srt",
-                "/tmp/nonexistent.sock"
+                "/tmp/nonexistent.sock",
             )
-            
+
             # Verify the thread function would have been called with correct args
             mock_sync.assert_called_once_with(
                 "/path/to/video.mkv",
                 "/path/to/subtitle.srt",
                 "/path/to/output.srt",
-                "/tmp/nonexistent.sock"
+                "/tmp/nonexistent.sock",
             )
 
     def test_sync_thread_command_send_failure(self):
@@ -854,16 +914,16 @@ class TestSyncThread:
         with patch("threading.Thread") as mock_thread:
             mock_thread_instance = MagicMock()
             mock_thread.return_value = mock_thread_instance
-            
-            # Call run_background_sync which will create a thread 
+
+            # Call run_background_sync which will create a thread
             # but we've mocked the Thread class
             run_background_sync(
                 "/path/to/video.mkv",
                 "/path/to/subtitle.srt",
                 "/path/to/output.srt",
-                "/tmp/mpv.sock"
+                "/tmp/mpv.sock",
             )
-            
+
             # Verify thread was created correctly
             mock_thread.assert_called_once()
             assert mock_thread.call_args[1]["target"] == sync_subtitles_thread
@@ -871,7 +931,7 @@ class TestSyncThread:
                 "/path/to/video.mkv",
                 "/path/to/subtitle.srt",
                 "/path/to/output.srt",
-                "/tmp/mpv.sock"
+                "/tmp/mpv.sock",
             )
             mock_thread_instance.start.assert_called_once()
 
@@ -884,9 +944,9 @@ class TestSyncThread:
                 "/path/to/video.mkv",
                 "/path/to/subtitle.srt",
                 "/path/to/output.srt",
-                "/tmp/mpv.sock"
+                "/tmp/mpv.sock",
             )
-            
+
             # Verify daemon thread was created
             mock_thread.assert_called_once()
             assert mock_thread.call_args[1]["daemon"] is True
@@ -898,11 +958,11 @@ class TestSyncThread:
             # Call function under test
             run_background_sync(
                 "/path/to/video.mkv",
-                "/path/to/subtitle.srt", 
+                "/path/to/subtitle.srt",
                 "/path/to/output.srt",
-                "/tmp/mpv.sock"
+                "/tmp/mpv.sock",
             )
-            
+
             # Verify the thread creation
             mock_thread.assert_called_once()
             mock_thread.return_value.start.assert_called_once()
@@ -910,9 +970,10 @@ class TestSyncThread:
     def test_run_background_sync_with_thread_exception(self):
         """Test run_background_sync when thread creation raises exception."""
         # Create a mock that raises an exception
-        with patch("threading.Thread", side_effect=Exception("Thread creation error")), \
-             patch("logging.getLogger") as mock_logger:
-            # Create a mock logger instance
+        with patch(
+            "threading.Thread", side_effect=Exception("Thread creation error")
+        ), patch("logging.getLogger") as mock_logger:
+            # Create a mock logger instance with proper mock assertions
             mock_logger_instance = MagicMock()
             mock_logger.return_value = mock_logger_instance
 
@@ -921,7 +982,7 @@ class TestSyncThread:
                 "/path/to/video.mkv",
                 "/path/to/subtitle.srt",
                 "/path/to/output.srt",
-                "/tmp/mpv.sock"
+                "/tmp/mpv.sock",
             )
 
             # Verify the error was logged
@@ -932,12 +993,14 @@ class TestSyncThread:
 
 class TestCliEdgeCases:
     """Tests for edge cases in CLI handling."""
-    
+
     def test_main_with_token_env_var(self):
         """Test main function with token from environment variable."""
         mock_downloader = MagicMock()
-        mock_downloader.return_value.download_subtitles.return_value = ["/path/to/subtitle.srt"]
-        
+        mock_downloader.return_value.download_subtitles.return_value = [
+            "/path/to/subtitle.srt"
+        ]
+
         mock_args = MagicMock(
             media_path="/path/to/video.mkv",
             dest_dir=None,
@@ -945,23 +1008,27 @@ class TestCliEdgeCases:
             token=None,  # No token provided in args
             log_level="INFO",
             anilist_id=None,
-            sync=False
+            sync=False,
         )
-        
-        with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), \
-             patch("jimaku_dl.cli.parse_args", return_value=mock_args), \
-             patch("os.path.exists", return_value=True), \
-             patch("jimaku_dl.cli.environ.get", return_value="env_token"):  # Token from env
-            
+
+        with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), patch(
+            "jimaku_dl.cli.parse_args", return_value=mock_args
+        ), patch("os.path.exists", return_value=True), patch(
+            "jimaku_dl.cli.environ.get", return_value="env_token"
+        ):  # Token from env
+
             result = main()
             assert result == 0
-            mock_downloader.assert_called_once_with(api_token="env_token", log_level="INFO")
+            mock_downloader.assert_called_once_with(
+                api_token="env_token", log_level="INFO"
+            )
 
     def test_main_with_no_arguments_provided(self):
         """Test main function with no arguments provided (should use defaults)."""
-        with patch("jimaku_dl.cli.parse_args", side_effect=SystemExit(0)), \
-             patch("builtins.print"):
-            
+        with patch("jimaku_dl.cli.parse_args", side_effect=SystemExit(0)), patch(
+            "builtins.print"
+        ):
+
             # Should return the code from SystemExit
             result = main([])
             assert result == 0
@@ -969,8 +1036,10 @@ class TestCliEdgeCases:
     def test_sync_flag_with_ffsubsync_installed(self):
         """Test sync flag when ffsubsync is available."""
         mock_downloader = MagicMock()
-        mock_downloader.return_value.download_subtitles.return_value = ["/path/to/subtitle.srt"]
-        
+        mock_downloader.return_value.download_subtitles.return_value = [
+            "/path/to/subtitle.srt"
+        ]
+
         mock_args = MagicMock(
             media_path="/path/to/video.mkv",
             dest_dir=None,
@@ -978,14 +1047,15 @@ class TestCliEdgeCases:
             token="test_token",
             log_level="INFO",
             anilist_id=None,
-            sync=True
+            sync=True,
         )
-        
-        with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), \
-             patch("jimaku_dl.cli.parse_args", return_value=mock_args), \
-             patch("jimaku_dl.cli.FFSUBSYNC_AVAILABLE", True), \
-             patch("os.path.exists", return_value=True):
-            
+
+        with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), patch(
+            "jimaku_dl.cli.parse_args", return_value=mock_args
+        ), patch("jimaku_dl.cli.FFSUBSYNC_AVAILABLE", True), patch(
+            "os.path.exists", return_value=True
+        ):
+
             result = main()
             assert result == 0
             # Verify download was called with sync=True
@@ -994,15 +1064,17 @@ class TestCliEdgeCases:
                 dest_dir=None,
                 play=False,
                 anilist_id=None,
-                sync=True  # Should pass through since ffsubsync is available
+                sync=True,  # Should pass through since ffsubsync is available
             )
 
     def test_output_path_creation_for_sync(self):
         """Test the creation of output path for synchronized subtitles."""
         mock_downloader = MagicMock()
-        mock_downloader.return_value.download_subtitles.return_value = ["/path/to/subtitle.srt"]
+        mock_downloader.return_value.download_subtitles.return_value = [
+            "/path/to/subtitle.srt"
+        ]
         mock_downloader.return_value.get_track_ids.return_value = (1, 2)
-        
+
         mock_args = MagicMock(
             media_path="/path/to/video.mkv",
             dest_dir=None,
@@ -1010,21 +1082,26 @@ class TestCliEdgeCases:
             token="test_token",
             log_level="INFO",
             anilist_id=None,
-            sync=True
+            sync=True,
         )
-        
-        with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), \
-             patch("jimaku_dl.cli.parse_args", return_value=mock_args), \
-             patch("jimaku_dl.cli.FFSUBSYNC_AVAILABLE", True), \
-             patch("os.path.exists", return_value=True), \
-             patch("jimaku_dl.cli.path.exists", return_value=True), \
-             patch("jimaku_dl.cli.path.splitext", return_value=("/path/to/subtitle", ".srt")), \
-             patch("jimaku_dl.cli.subprocess_run"), \
-             patch("jimaku_dl.cli.run_background_sync") as mock_sync:
-            
+
+        with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), patch(
+            "jimaku_dl.cli.parse_args", return_value=mock_args
+        ), patch("jimaku_dl.cli.FFSUBSYNC_AVAILABLE", True), patch(
+            "os.path.exists", return_value=True
+        ), patch(
+            "jimaku_dl.cli.path.exists", return_value=True
+        ), patch(
+            "jimaku_dl.cli.path.splitext", return_value=("/path/to/subtitle", ".srt")
+        ), patch(
+            "jimaku_dl.cli.subprocess_run"
+        ), patch(
+            "jimaku_dl.cli.run_background_sync"
+        ) as mock_sync:
+
             result = main()
             assert result == 0
-            
+
             # Check output path formation in the run_background_sync call
             assert mock_sync.called
             output_path = mock_sync.call_args[0][2]

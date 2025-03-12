@@ -1,17 +1,13 @@
-"""Global pytest fixtures for jimaku-dl tests."""
+"""Test configuration and fixtures for jimaku-dl."""
 
+import builtins
 import os
-import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
-
-# Add the src directory to the Python path
-project_root = Path(__file__).parent.parent
-src_path = project_root / "src"
-sys.path.insert(0, str(src_path))
+import responses
 
 
 @pytest.fixture
@@ -22,15 +18,57 @@ def temp_dir():
 
 
 @pytest.fixture
+def sample_video_file(temp_dir):
+    """Create a sample video file for testing."""
+    video_file = os.path.join(temp_dir, "test_video.mkv")
+    with open(video_file, "wb") as f:
+        f.write(b"fake video content")
+    return video_file
+
+
+@pytest.fixture
+def sample_anime_directory(temp_dir):
+    """Create a sample anime directory structure for testing."""
+    anime_dir = os.path.join(temp_dir, "Test Anime")
+    os.makedirs(anime_dir, exist_ok=True)
+    season_dir = os.path.join(anime_dir, "Season 1")
+    os.makedirs(season_dir, exist_ok=True)
+
+    # Create a few dummy video files
+    for i in range(1, 4):
+        video_file = os.path.join(season_dir, f"Episode {i}.mkv")
+        with open(video_file, "wb") as f:
+            f.write(b"fake video content")
+
+    return anime_dir
+
+
+@pytest.fixture
+def mock_requests():
+    """Set up common request mocking."""
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.raise_for_status.return_value = None
+
+    mock_post = MagicMock(return_value=mock_response)
+    mock_get = MagicMock(return_value=mock_response)
+
+    with patch("requests.post", mock_post), patch("requests.get", mock_get), patch(
+        "jimaku_dl.downloader.requests_post", mock_post
+    ), patch("jimaku_dl.downloader.requests_get", mock_get):
+        yield {"post": mock_post, "get": mock_get, "response": mock_response}
+
+
+@pytest.fixture
 def mock_anilist_response():
-    """Mock response from AniList API."""
+    """Return a mock response for AniList API."""
     return {
         "data": {
             "Media": {
                 "id": 123456,
                 "title": {
                     "romaji": "Test Anime",
-                    "english": "Test Anime English",
+                    "english": "Test Anime Show",
                     "native": "テストアニメ",
                 },
                 "synonyms": ["Test Show"],
@@ -41,136 +79,114 @@ def mock_anilist_response():
 
 @pytest.fixture
 def mock_jimaku_entries_response():
-    """Mock response from Jimaku entries endpoint."""
+    """Return a mock response for Jimaku entries API."""
     return [
+        {"id": 100, "english_name": "Test Anime", "japanese_name": "テストアニメ"},
         {
-            "id": 1,
-            "english_name": "Test Anime",
-            "japanese_name": "テストアニメ",
-            "anilist_id": 123456,
-        }
+            "id": 101,
+            "english_name": "Another Test Anime",
+            "japanese_name": "別のテストアニメ",
+        },
     ]
 
 
 @pytest.fixture
 def mock_jimaku_files_response():
-    """Mock response from Jimaku files endpoint."""
+    """Return a mock response for Jimaku files API."""
     return [
         {
-            "id": 101,
+            "id": 201,
             "name": "Test Anime - 01.srt",
-            "url": "https://jimaku.cc/api/files/101",
+            "url": "https://example.com/subtitles/201",
         },
         {
-            "id": 102,
+            "id": 202,
             "name": "Test Anime - 02.srt",
-            "url": "https://jimaku.cc/api/files/102",
+            "url": "https://example.com/subtitles/202",
         },
     ]
 
 
 @pytest.fixture
-def mock_requests(
-    monkeypatch,
-    mock_anilist_response,
-    mock_jimaku_entries_response,
-    mock_jimaku_files_response,
-):
-    """Mock requests module for API calls."""
-    mock_response = MagicMock()
-    mock_response.raise_for_status = MagicMock()
-    mock_response.json = MagicMock()
+def setup_test_environment():
+    """Set up a complete test environment with all mocks for API testing."""
+    # Mark this as a test environment
+    os.environ["TESTING"] = "1"
 
-    def mock_requests_post(url, **kwargs):
-        if "anilist.co" in url:
-            mock_response.json.return_value = mock_anilist_response
-        return mock_response
+    # Create patchers
+    path_exists_patcher = patch("os.path.exists", return_value=True)
+    open_patcher = patch("builtins.open", mock_open(read_data="test data"))
+    input_patcher = patch("builtins.input", return_value="Test Input")
+    subprocess_patcher = patch(
+        "subprocess.run", return_value=MagicMock(returncode=0, stdout="", stderr="")
+    )
 
-    def mock_requests_get(url, **kwargs):
-        if "entries/search" in url:
-            mock_response.json.return_value = mock_jimaku_entries_response
-        elif "entries/" in url and "/files" in url:
-            mock_response.json.return_value = mock_jimaku_files_response
-        return mock_response
+    # Add responses for API endpoints
+    with responses.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        # Mock AniList API
+        rsps.add(
+            responses.POST,
+            "https://graphql.anilist.co",
+            json={"data": {"Media": {"id": 1234}}},
+            status=200,
+        )
 
-    # Patch both the direct imports used in downloader.py and the regular requests module
-    monkeypatch.setattr("requests.post", mock_requests_post)
-    monkeypatch.setattr("requests.get", mock_requests_get)
-    monkeypatch.setattr("jimaku_dl.downloader.requests_post", mock_requests_post)
-    monkeypatch.setattr("jimaku_dl.downloader.requests_get", mock_requests_get)
+        # Mock Jimaku search endpoint with ?anilist_id parameter
+        rsps.add(
+            responses.GET,
+            "https://jimaku.cc/api/entries/search",
+            match=[responses.matchers.query_param_matcher({"anilist_id": "1234"})],
+            json=[
+                {
+                    "id": 100,
+                    "english_name": "Test Anime",
+                    "japanese_name": "テスト",
+                }
+            ],
+            status=200,
+        )
 
-    return {
-        "post": mock_requests_post,
-        "get": mock_requests_get,
-        "response": mock_response,
-    }
+        # Mock Jimaku files endpoint
+        rsps.add(
+            responses.GET,
+            "https://jimaku.cc/api/entries/100/files",
+            json=[
+                {
+                    "id": 200,
+                    "name": "Test Anime - 01.srt",
+                    "url": "https://jimaku.cc/download/200",
+                }
+            ],
+            status=200,
+        )
 
+        # Mock subtitle file download
+        rsps.add(
+            responses.GET,
+            "https://jimaku.cc/download/200",
+            body="1\n00:00:01,000 --> 00:00:05,000\nTest subtitle",
+            status=200,
+        )
 
-@pytest.fixture
-def mock_subprocess(monkeypatch):
-    """Mock subprocess module for fzf and mpv calls."""
-    mock_run = MagicMock()
-    mock_result = MagicMock()
-    mock_result.stdout = "1. Test Selection"
-    mock_run.return_value = mock_result
+        # Start patchers
+        path_exists = path_exists_patcher.start()
+        mock_open_file = open_patcher.start()
+        mock_input = input_patcher.start()
+        mock_subprocess = subprocess_patcher.start()
 
-    monkeypatch.setattr("subprocess.run", mock_run)
-    return mock_run
+        yield {
+            "path_exists": path_exists,
+            "mock_open": mock_open_file,
+            "mock_input": mock_input,
+            "mock_subprocess": mock_subprocess,
+            "rsps": rsps,
+        }
 
+        # Stop patchers
+        path_exists_patcher.stop()
+        open_patcher.stop()
+        input_patcher.stop()
+        subprocess_patcher.stop()
 
-@pytest.fixture
-def sample_video_file(temp_dir):
-    """Create a sample video file."""
-    file_path = os.path.join(temp_dir, "Test Anime S01E01 [1080p].mkv")
-    with open(file_path, "wb") as f:
-        f.write(b"dummy video content")
-    return file_path
-
-
-@pytest.fixture
-def sample_anime_directory(temp_dir):
-    """Create a sample directory structure for anime."""
-    # Main directory
-    anime_dir = os.path.join(temp_dir, "Test Anime")
-    os.makedirs(anime_dir)
-
-    # Season subdirectory
-    season_dir = os.path.join(anime_dir, "Season-1")
-    os.makedirs(season_dir)
-
-    # Episode files
-    for i in range(1, 3):
-        file_path = os.path.join(season_dir, f"Test Anime S01E0{i} [1080p].mkv")
-        with open(file_path, "wb") as f:
-            f.write(b"dummy video content")
-
-    return anime_dir
-
-
-@pytest.fixture(autouse=True)
-def clean_mocks():
-    """Reset all mocks after each test to prevent side effect leakage."""
-    yield
-    # This runs after each test to clean up
-    from unittest import mock
-    
-    # Get all active patches and stop them
-    mock.patch.stopall()
-    
-    # Clear mock registry
-    mock._patch._active_patches.clear()
-    
-    # Create clean mock for JimakuDownloader methods that are commonly patched
-    clean_download_mock = mock.MagicMock()
-    clean_download_mock.side_effect = None  # Ensure no side effects are set
-    clean_download_mock.return_value = ["/path/to/clean_subtitle.srt"]
-    
-    # Patch the common methods with clean mocks
-    test_patches = [
-        mock.patch('jimaku_dl.cli.JimakuDownloader'),
-        mock.patch('jimaku_dl.cli.parse_args')
-    ]
-    
-    # Start all patches
-    for test_patch in test_patches:
-        test_patch.start()
+    # Clean up environment
+    del os.environ["TESTING"]

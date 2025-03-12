@@ -119,8 +119,13 @@ class TestJimakuDownloader:
     def test_query_anilist_manual_entry(self, mock_requests):
         """Test querying AniList with manual entry fallback."""
         downloader = JimakuDownloader(api_token="test_token")
-        mock_requests["response"].json.return_value = {"data": {"Media": None}}
-        with patch("builtins.input", return_value="123456"):
+
+        # Setup initial API error response
+        mock_requests["response"].json.return_value = {"data": {}}
+
+        # This will mock the input function to handle the manual entry flow
+        with patch("builtins.input", side_effect=["y", "123456"]):
+            # Test with the correct error handling flow
             anilist_id = downloader.query_anilist("Non-existent Anime", season=1)
             assert anilist_id == 123456
 
@@ -165,10 +170,10 @@ class TestJimakuDownloader:
     def test_load_cached_anilist_id(self, temp_dir):
         """Test loading cached AniList ID from file."""
         downloader = JimakuDownloader(api_token="test_token")
-        
+
         # Explicitly clear the LRU cache before testing
         JimakuDownloader.load_cached_anilist_id.cache_clear()
-        
+
         # Test with no cache file
         assert downloader.load_cached_anilist_id(temp_dir) is None
 
@@ -185,7 +190,7 @@ class TestJimakuDownloader:
         invalid_dir = os.path.join(temp_dir, "invalid_dir")
         os.makedirs(invalid_dir, exist_ok=True)
         invalid_cache_path = os.path.join(invalid_dir, ".anilist.id")
-        
+
         with open(invalid_cache_path, "w") as f:
             f.write("invalid")
 
@@ -900,7 +905,9 @@ class TestJimakuDownloader:
             # Mock subprocess_run to verify MPV is launched
             with patch("jimaku_dl.downloader.subprocess_run") as mock_subprocess:
                 # Call with play=True, sync=True to verify background sync is properly mocked
-                result = downloader.download_subtitles(sample_video_file, play=True, sync=True)
+                result = downloader.download_subtitles(
+                    sample_video_file, play=True, sync=True
+                )
 
                 # Verify MPV was launched exactly once
                 mock_subprocess.assert_called_once()
@@ -981,8 +988,10 @@ class TestJimakuDownloader:
     def test_query_anilist_manual_entry(self, mock_requests):
         """Test querying AniList with manual entry fallback."""
         downloader = JimakuDownloader(api_token="test_token")
-        mock_requests["response"].json.return_value = {"data": {"Media": None}}
-        with patch("builtins.input", return_value="123456"):
+        mock_requests["response"].json.return_value = {"data": {}}
+
+        # We need to mock both inputs: first "y" for wanting to enter manually, then "123456" for the ID
+        with patch("builtins.input", side_effect=["y", "123456"]):
             anilist_id = downloader.query_anilist("Non-existent Anime", season=1)
             assert anilist_id == 123456
 
