@@ -35,10 +35,18 @@ class TestPlatformCompat:
             assert family == socket.AF_INET
             assert type_ == socket.SOCK_STREAM
 
+        # For Linux testing, we need to make sure socket.AF_UNIX exists
         with patch("platform.system", return_value="Linux"):
-            family, type_ = get_socket_type()
-            assert family == socket.AF_UNIX
-            assert type_ == socket.SOCK_STREAM
+            # Add AF_UNIX if it doesn't exist (for Windows)
+            if not hasattr(socket, "AF_UNIX"):
+                with patch("socket.AF_UNIX", 1, create=True):
+                    family, type_ = get_socket_type()
+                    assert family == 1  # Mocked AF_UNIX value
+                    assert type_ == socket.SOCK_STREAM
+            else:
+                family, type_ = get_socket_type()
+                assert family == socket.AF_UNIX
+                assert type_ == socket.SOCK_STREAM
 
     def test_get_socket_path(self):
         """Test get_socket_path function."""

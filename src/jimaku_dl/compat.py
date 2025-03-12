@@ -120,7 +120,9 @@ def windows_socket_compat():
             def socket_wrapper(*args, **kwargs):
                 # Replace AF_UNIX with AF_INET
                 if args and args[0] == socket.AF_UNIX:
-                    return old_socket(socket.AF_INET, *args[1:], **kwargs)
+                    args = list(args)
+                    args[0] = socket.AF_INET
+                    args = tuple(args)
                 return old_socket(*args, **kwargs)
 
             # Apply the override

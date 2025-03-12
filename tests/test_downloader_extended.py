@@ -117,8 +117,8 @@ class TestMPVSocketCommunication:
         """Test handling of socket errors in update_mpv_subtitle."""
         downloader = JimakuDownloader(api_token="test_token")
 
-        # Mock socket connection that fails
-        with patch("socket.socket") as mock_socket:
+        # Handle socket.AF_UNIX not being available on Windows
+        with patch("jimaku_dl.downloader.socket.socket") as mock_socket:
             # Create a mock socket instance
             mock_socket_instance = MagicMock()
             mock_socket.return_value = mock_socket_instance
@@ -126,13 +126,15 @@ class TestMPVSocketCommunication:
             # Make connect method raise an exception
             mock_socket_instance.connect.side_effect = socket.error("Connection error")
 
-            # Call the method
-            result = downloader.update_mpv_subtitle("/tmp/mpv.sock", "subtitle.srt")
+            # Ensure AF_UNIX exists for the test
+            with patch("jimaku_dl.downloader.socket.AF_UNIX", 1, create=True):
+                # Call the method
+                result = downloader.update_mpv_subtitle("/tmp/mpv.sock", "subtitle.srt")
 
-            # Check that the result is False (failure)
-            assert result is False
-            # Verify connect was called
-            mock_socket_instance.connect.assert_called_once()
+                # Check that the result is False (failure)
+                assert result is False
+                # Verify connect was called
+                mock_socket_instance.connect.assert_called_once()
 
 
 class TestSubtitleSynchronization:
