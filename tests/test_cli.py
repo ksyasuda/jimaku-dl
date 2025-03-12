@@ -204,7 +204,6 @@ class TestCli:
         mock_downloader.return_value.download_subtitles.return_value = [
             "/path/to/subtitle.srt"
         ]
-        # Add mock for get_track_ids
         mock_downloader.return_value.get_track_ids.return_value = (1, 2)  # sid, aid
 
         # Create args with the required command and attributes
@@ -219,11 +218,23 @@ class TestCli:
             sync=False,
         )
 
-        # Patch jimaku_dl.cli.parse_args directly
+        # Create a more specific mock for subprocess_run that explicitly prevents MPV execution
+        def mock_subprocess_run(cmd, *args, **kwargs):
+            # Return a mock object without actually executing the command
+            mock_result = MagicMock()
+            mock_result.returncode = 0
+            mock_result.stdout = ""
+            mock_result.stderr = ""
+            return mock_result
+
+        mock_subprocess = MagicMock(side_effect=mock_subprocess_run)
+
         with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), patch(
             "jimaku_dl.cli.parse_args", return_value=mock_args
         ), patch("os.path.exists", return_value=True), patch(
             "jimaku_dl.cli.path.exists", return_value=True
+        ), patch(
+            "jimaku_dl.cli.subprocess_run", mock_subprocess
         ):
 
             result = main()
@@ -240,6 +251,8 @@ class TestCli:
             mock_downloader.return_value.get_track_ids.assert_called_once_with(
                 "/path/to/video.mkv", "/path/to/subtitle.srt"
             )
+            # Verify subprocess.run was called but ignore stderr output
+            assert mock_subprocess.called
 
     def test_token_arg(self):
         """Test CLI with token argument."""
@@ -398,11 +411,23 @@ class TestCli:
             sync=False,
         )
 
+        # Define a mock subprocess_run implementation that doesn't actually run MPV
+        def mock_subprocess_run(cmd, *args, **kwargs):
+            mock_result = MagicMock()
+            mock_result.returncode = 0
+            mock_result.stdout = ""
+            mock_result.stderr = ""
+            return mock_result
+
+        mock_subprocess = MagicMock(side_effect=mock_subprocess_run)
+
         # Add path existence mocks
         with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), patch(
             "jimaku_dl.cli.parse_args", return_value=mock_args
         ), patch("os.path.exists", return_value=True), patch(
             "jimaku_dl.cli.path.exists", return_value=True
+        ), patch(
+            "jimaku_dl.cli.subprocess_run", mock_subprocess
         ):
 
             result = main()
@@ -819,7 +844,8 @@ class TestParseArgs:
 
     def test_invalid_path(self):
         """Test handling of invalid paths"""
-        with pytest.raises(SystemExit):
+        # Suppress stderr output from argparse
+        with patch("sys.stderr"), pytest.raises(SystemExit):
             parse_args(["--play"])  # Missing required media_path argument
 
     def test_all_options(self):
