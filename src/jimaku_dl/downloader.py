@@ -19,9 +19,8 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from guessit import guessit
 from requests import get as requests_get
 from requests import post as requests_post
-from requests.exceptions import RequestException  # Add this import
+from requests.exceptions import RequestException
 
-# Check if ffsubsync is available
 FFSUBSYNC_AVAILABLE = find_spec("ffsubsync") is not None
 
 
@@ -58,7 +57,7 @@ class JimakuDownloader:
         """
         self.quiet = quiet
         if quiet:
-            log_level = "ERROR"  # Only show errors in quiet mode
+            log_level = "ERROR"
         self.logger = self._setup_logging(log_level)
 
         self.api_token = api_token or environ.get("JIMAKU_API_TOKEN", "")
@@ -131,20 +130,17 @@ class JimakuDownloader:
             guess = guessit(filename)
 
             title = guess.get("title")
-            # Preserve year in title if present
             if title and "year" in guess:
                 title = f"{title} ({guess['year']})"
 
-            # Handle special case for complex titles
             if title and "alternative_title" in guess:
                 title = f"{title}: {guess['alternative_title']}"
 
-            season = guess.get("season", 1)  # Default to season 1 if not found
+            season = guess.get("season", 1)
             episode = guess.get("episode")
 
-            # Make sure episode is a single int, not a list
             if isinstance(episode, list):
-                episode = episode[0]  # Take the first episode number
+                episode = episode[0]
 
             if title and episode is not None:
                 self.logger.debug(
@@ -904,9 +900,7 @@ class JimakuDownloader:
         if "test" in media_file or environ.get("TESTING") == "1":
             return 1, 1  # Return fixed IDs for testing
 
-        # Real implementation for actual usage
         try:
-            # Ensure we have absolute paths
             media_file_abs = abspath(media_file)
             subtitle_file_abs = abspath(subtitle_file)
             subtitle_basename = basename(subtitle_file_abs).lower()
@@ -986,11 +980,9 @@ class JimakuDownloader:
         ValueError
             If an error occurs during download
         """
-        # Check if file already exists
         if exists(dest_path):
             self.logger.debug(f"File already exists at: {dest_path}")
 
-            # Give user options for how to handle existing file
             options = [
                 "Overwrite existing file",
                 "Use existing file (skip download)",
@@ -1010,8 +1002,6 @@ class JimakuDownloader:
                     counter += 1
                 dest_path = f"{base}_{counter}{ext}"
                 self.logger.info(f"Will download to: {dest_path}")
-
-            # Otherwise, proceed with overwrite
 
         try:
             self.logger.debug(f"Downloading file from: {url}")
@@ -1059,7 +1049,6 @@ class JimakuDownloader:
             If synchronization fails or ffsubsync is not installed
         """
         try:
-            # Check for existing synced files first
             existing = self.check_existing_sync(subtitle_path, output_path)
             if existing:
                 self.logger.info(f"Using existing synced subtitle: {existing}")
@@ -1071,25 +1060,21 @@ class JimakuDownloader:
                 base, ext = splitext(subtitle_path)
                 output_path = f"{base}.synced{ext}"
 
-            # Ensure input and output paths are different
             if output_path == subtitle_path:
                 base, ext = splitext(subtitle_path)
                 output_path = f"{base}.synchronized{ext}"
 
-            # Prepare the command with the minimal needed arguments
             cmd = ["ffsubsync", video_path, "-i", subtitle_path, "-o", output_path]
 
             self.logger.debug(f"Running command: {' '.join(cmd)}")
 
-            # Run the command as a subprocess
             process = subprocess_run(
                 cmd,
                 text=True,
                 capture_output=True,
-                check=False,  # Don't raise exception on non-zero exit
+                check=False,
             )
 
-            # Check if the synchronization was successful
             if process.returncode != 0:
                 self.logger.error(f"Synchronization failed: {process.stderr}")
                 self.logger.warning(
@@ -1189,62 +1174,61 @@ class JimakuDownloader:
                     self.logger.debug(f"Socket send error: {e}")
                     return None
 
+            track_list_cmd = {
+                "command": ["get_property", "track-list"],
+                "request_id": 1,
+            }
+            track_response = send_command(track_list_cmd)
+            if track_response and "data" in track_response:
+                sub_tracks = [
+                    t for t in track_response["data"] if t.get("type") == "sub"
+                ]
+                next_id = len(sub_tracks) + 1
+                commands = [
+                    {"command": ["sub-reload"], "request_id": 2},
+                    {"command": ["sub-add", abspath(subtitle_path)], "request_id": 3},
+                    {
+                        "command": ["set_property", "sub-visibility", "yes"],
+                        "request_id": 4,
+                    },
+                    {"command": ["set_property", "sid", next_id], "request_id": 5},
+                    {
+                        "command": ["osd-msg", "Subtitle synchronization complete!"],
+                        "request_id": 6,
+                    },
+                    {
+                        "command": [
+                            "show-text",
+                            "Subtitle synchronization complete!",
+                            3000,
+                            1,
+                        ],
+                        "request_id": 7,
+                    },
+                ]
+                all_succeeded = True
+                for cmd in commands:
+                    if not send_command(cmd):
+                        all_succeeded = False
+                        break
+                    time.sleep(0.1)
+
+                try:
+                    sock.shutdown(socket.SHUT_RDWR)
+                finally:
+                    sock.close()
+
+                if all_succeeded:
+                    self.logger.info(
+                        f"Updated MPV with synchronized subtitle: {subtitle_path}"
+                    )
+                    return True
+
+            return False
+
         except Exception as e:
             self.logger.error(f"Failed to update MPV subtitles: {e}")
             return False
-
-        track_list_cmd = {
-            "command": ["get_property", "track-list"],
-            "request_id": 1,
-        }
-        track_response = send_command(track_list_cmd)
-        if track_response and "data" in track_response:
-            sub_tracks = [t for t in track_response["data"] if t.get("type") == "sub"]
-            next_id = len(sub_tracks) + 1
-            commands = [
-                {"command": ["sub-reload"], "request_id": 2},
-                {"command": ["sub-add", abspath(subtitle_path)], "request_id": 3},
-                {
-                    "command": ["set_property", "sub-visibility", "yes"],
-                    "request_id": 4,
-                },
-                {"command": ["set_property", "sid", next_id], "request_id": 5},
-                {
-                    "command": ["osd-msg", "Subtitle synchronization complete!"],
-                    "request_id": 6,
-                },
-                # Also send explicit show-text with longer duration and higher OSD level
-                {
-                    "command": [
-                        "expand-properties",
-                        "show-text",
-                        "${osd-ass-cc/0}{\\fs20\\b1\\c&HCAD3F5&}Subtitle "
-                        "synchronization complete!${osd-ass-cc/1}",
-                        5000,
-                        1,
-                    ],
-                    "request_id": 7,
-                },
-            ]
-            all_succeeded = True
-            for cmd in commands:
-                if not send_command(cmd):
-                    all_succeeded = False
-                    break
-                time.sleep(0.1)  # Small delay between commands
-
-            try:
-                sock.shutdown(socket.SHUT_RDWR)
-            finally:
-                sock.close()
-
-            if all_succeeded:
-                self.logger.info(
-                    f"Updated MPV with synchronized subtitle: {subtitle_path}"
-                )
-                return True
-
-        return False
 
     def download_subtitles(
         self,

@@ -185,10 +185,8 @@ def sync_subtitles_thread(
                         },
                         {
                             "command": [
-                                "expand-properties",
                                 "show-text",
-                                "${osd-ass-cc/0}{\\fs20\\b1\\c&CAD3F5&}Subtitle "
-                                "synchronization complete!${osd-ass-cc/1}",
+                                "Subtitle synchronization complete!",
                                 3000,
                                 1,
                             ],
@@ -199,6 +197,7 @@ def sync_subtitles_thread(
                         if not send_command(cmd):
                             all_succeeded = False
                             break
+                        time.sleep(0.1)  # Small delay between commands
 
             try:
                 send_command({"command": ["ignore"]})
