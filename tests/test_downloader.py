@@ -119,13 +119,8 @@ class TestJimakuDownloader:
     def test_query_anilist_manual_entry(self, mock_requests):
         """Test querying AniList with manual entry fallback."""
         downloader = JimakuDownloader(api_token="test_token")
-
-        # Setup initial API error response
-        mock_requests["response"].json.return_value = {"data": {}}
-
-        # This will mock the input function to handle the manual entry flow
-        with patch("builtins.input", side_effect=["y", "123456"]):
-            # Test with the correct error handling flow
+        mock_requests["response"].json.return_value = {"data": {"Media": None}}
+        with patch("builtins.input", return_value="123456"):
             anilist_id = downloader.query_anilist("Non-existent Anime", season=1)
             assert anilist_id == 123456
 
@@ -988,10 +983,8 @@ class TestJimakuDownloader:
     def test_query_anilist_manual_entry(self, mock_requests):
         """Test querying AniList with manual entry fallback."""
         downloader = JimakuDownloader(api_token="test_token")
-        mock_requests["response"].json.return_value = {"data": {}}
-
-        # We need to mock both inputs: first "y" for wanting to enter manually, then "123456" for the ID
-        with patch("builtins.input", side_effect=["y", "123456"]):
+        mock_requests["response"].json.return_value = {"data": {"Media": None}}
+        with patch("builtins.input", return_value="123456"):
             anilist_id = downloader.query_anilist("Non-existent Anime", season=1)
             assert anilist_id == 123456
 

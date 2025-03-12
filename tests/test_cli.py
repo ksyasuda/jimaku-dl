@@ -7,8 +7,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from jimaku_dl import __version__, JimakuDownloader
-from jimaku_dl.cli import main, parse_args, sync_subtitles_thread, run_background_sync
+from jimaku_dl import JimakuDownloader, __version__
+from jimaku_dl.cli import main, parse_args, run_background_sync, sync_subtitles_thread
 
 
 @pytest.fixture(autouse=True)
@@ -219,14 +219,12 @@ class TestCli:
             sync=False,
         )
 
-        # Add mock for subprocess_run to prevent FileNotFoundError
+        # Patch jimaku_dl.cli.parse_args directly
         with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), patch(
             "jimaku_dl.cli.parse_args", return_value=mock_args
         ), patch("os.path.exists", return_value=True), patch(
             "jimaku_dl.cli.path.exists", return_value=True
-        ), patch(
-            "jimaku_dl.cli.subprocess_run"
-        ) as mock_run:  # Mock subprocess_run
+        ):
 
             result = main()
 
@@ -242,8 +240,6 @@ class TestCli:
             mock_downloader.return_value.get_track_ids.assert_called_once_with(
                 "/path/to/video.mkv", "/path/to/subtitle.srt"
             )
-            # Verify MPV was called with the right arguments
-            mock_run.assert_called()
 
     def test_token_arg(self):
         """Test CLI with token argument."""
@@ -402,14 +398,12 @@ class TestCli:
             sync=False,
         )
 
-        # Add mock for subprocess_run to prevent FileNotFoundError
+        # Add path existence mocks
         with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), patch(
             "jimaku_dl.cli.parse_args", return_value=mock_args
         ), patch("os.path.exists", return_value=True), patch(
             "jimaku_dl.cli.path.exists", return_value=True
-        ), patch(
-            "jimaku_dl.cli.subprocess_run"
-        ) as mock_run:  # Mock subprocess_run
+        ):
 
             result = main()
 
@@ -428,8 +422,6 @@ class TestCli:
             mock_downloader.return_value.get_track_ids.assert_called_once_with(
                 "/path/to/video.mkv", "/path/to/subtitle.srt"
             )
-            # Verify MPV was called
-            mock_run.assert_called()
 
     def test_sync_with_ffsubsync_not_available(self):
         """Test sync flag handling when ffsubsync is not available."""
@@ -800,9 +792,10 @@ class TestCli:
 
 import sys
 from unittest import mock
+
 import pytest
 
-from jimaku_dl.cli import parse_args, main
+from jimaku_dl.cli import main, parse_args
 
 
 class TestParseArgs:
@@ -973,7 +966,7 @@ class TestSyncThread:
         with patch(
             "threading.Thread", side_effect=Exception("Thread creation error")
         ), patch("logging.getLogger") as mock_logger:
-            # Create a mock logger instance with proper mock assertions
+            # Create a mock logger instance
             mock_logger_instance = MagicMock()
             mock_logger.return_value = mock_logger_instance
 

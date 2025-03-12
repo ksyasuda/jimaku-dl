@@ -1,5 +1,6 @@
 """Tests specifically for the parse_filename method."""
 
+import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -70,42 +71,50 @@ class TestParseFilename:
         """Test extracting info from directory structure."""
         # Mock _prompt_for_title_info to avoid reading from stdin for the entire test function
         with patch.object(self.downloader, "_prompt_for_title_info") as mock_prompt:
-            # Configure mock to return appropriate values for different test cases
+            # Configure mock for each test case
             mock_prompt.side_effect = [
-                ("Show Name", 1, 2),  # First call return value
-                ("Show Name", 3, 4),  # Second call return value
-                ("My Anime", 2, 5),  # Third call return value
-                ("Long Anime Title With Spaces", 1, 3),  # Fourth call return value
+                ("Show Name", 1, 2),
+                ("Show Name", 3, 4),
+                ("My Anime", 2, 5),
+                ("Long Anime Title With Spaces", 1, 3),
             ]
 
+            # Use proper path joining for cross-platform compatibility
             # Standard Season-## format
-            title, season, episode = self.downloader.parse_filename(
-                "/path/to/Show Name/Season-1/Show Name - 02 [1080p].mkv"
+            file_path = os.path.join(
+                "path", "to", "Show Name", "Season-1", "Show Name - 02 [1080p].mkv"
             )
+            title, season, episode = self.downloader.parse_filename(file_path)
             assert title == "Show Name"
             assert season == 1
             assert episode == 2
 
             # Season ## format
-            title, season, episode = self.downloader.parse_filename(
-                "/path/to/Show Name/Season 03/Episode 4.mkv"
+            file_path = os.path.join(
+                "path", "to", "Show Name", "Season 03", "Episode 4.mkv"
             )
+            title, season, episode = self.downloader.parse_filename(file_path)
             assert title == "Show Name"
             assert season == 3
             assert episode == 4
 
             # Simple number in season directory
-            title, season, episode = self.downloader.parse_filename(
-                "/path/to/My Anime/Season 2/5.mkv"
-            )
+            file_path = os.path.join("path", "to", "My Anime", "Season 2", "5.mkv")
+            title, season, episode = self.downloader.parse_filename(file_path)
             assert title == "My Anime"
             assert season == 2
             assert episode == 5
 
             # Long pathname with complex directory structure
-            title, season, episode = self.downloader.parse_filename(
-                "/media/user/Anime/Long Anime Title With Spaces/Season-1/Long Anime Title With Spaces - 03.mkv"
+            file_path = os.path.join(
+                "media",
+                "user",
+                "Anime",
+                "Long Anime Title With Spaces",
+                "Season-1",
+                "Long Anime Title With Spaces - 03.mkv",
             )
+            title, season, episode = self.downloader.parse_filename(file_path)
             assert title == "Long Anime Title With Spaces"
             assert season == 1
             assert episode == 3

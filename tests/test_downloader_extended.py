@@ -3,7 +3,7 @@
 import os
 import socket
 import tempfile
-from unittest.mock import MagicMock, patch, mock_open
+from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
@@ -113,6 +113,27 @@ class TestMPVSocketCommunication:
 
             assert result is False
 
+    def test_update_mpv_subtitle_socket_error(self):
+        """Test handling of socket errors in update_mpv_subtitle."""
+        downloader = JimakuDownloader(api_token="test_token")
+
+        # Mock socket connection that fails
+        with patch("socket.socket") as mock_socket:
+            # Create a mock socket instance
+            mock_socket_instance = MagicMock()
+            mock_socket.return_value = mock_socket_instance
+
+            # Make connect method raise an exception
+            mock_socket_instance.connect.side_effect = socket.error("Connection error")
+
+            # Call the method
+            result = downloader.update_mpv_subtitle("/tmp/mpv.sock", "subtitle.srt")
+
+            # Check that the result is False (failure)
+            assert result is False
+            # Verify connect was called
+            mock_socket_instance.connect.assert_called_once()
+
 
 class TestSubtitleSynchronization:
     """Tests for subtitle synchronization functionality."""
@@ -208,6 +229,33 @@ class TestFileNameParsing:
         ):
             title, season, episode = downloader.find_anime_title_in_path(
                 "/path/to/Anime/Winter 2023/Show Name/Season 1"
+            )
+
+            assert title == "Show Name"
+            assert season == 1
+            assert episode == 0
+
+    def test_find_anime_title_in_path_hierarchical(self):
+        """Test finding anime title in a hierarchical directory structure."""
+        downloader = JimakuDownloader(api_token="test_token")
+
+        # Use os.path.join for cross-platform compatibility
+        hierarchical_path = os.path.join(
+            "path", "to", "Anime", "Winter 2023", "Show Name", "Season 1"
+        )
+
+        # Mock parse_directory_name to return specific values at different levels
+        with patch.object(downloader, "parse_directory_name") as mock_parse:
+            # Return values for each level going up from Season 1 to Anime
+            mock_parse.side_effect = [
+                (False, "", 0, 0),  # Fail for "Season 1"
+                (True, "Show Name", 1, 0),  # Succeed for "Show Name"
+                (False, "", 0, 0),  # Fail for "Winter 2023"
+                (False, "", 0, 0),  # Fail for "Anime"
+            ]
+
+            title, season, episode = downloader.find_anime_title_in_path(
+                hierarchical_path
             )
 
             assert title == "Show Name"

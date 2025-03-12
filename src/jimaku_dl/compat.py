@@ -22,7 +22,7 @@ def get_socket_type() -> Tuple[int, int]:
     """
     if is_windows():
         return (socket.AF_INET, socket.SOCK_STREAM)
-    return (socket.AF_UNIX, socket.SOCK_STREAM)
+    return (getattr(socket, "AF_UNIX", socket.AF_INET), socket.SOCK_STREAM)
 
 
 def get_socket_path(socket_name: str) -> Union[str, Tuple[str, int]]:

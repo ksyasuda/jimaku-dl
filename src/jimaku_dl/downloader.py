@@ -392,7 +392,8 @@ class JimakuDownloader:
         original_path = path
         path = abspath(path)
 
-        while path and path != "/":
+        # Continue until we reach the root directory
+        while path and path != dirname(path):  # This works on both Windows and Unix
             success, title, season, episode = self.parse_directory_name(path)
 
             if success:
@@ -521,35 +522,14 @@ class JimakuDownloader:
                 self.logger.info(f"Found AniList ID: {anilist_id}")
                 return anilist_id
 
-            # If automatic search fails, prompt the user
-            self.logger.warning(
+            # If all automatic methods fail, raise ValueError
+            self.logger.error(
                 f"AniList search failed for title: {title}, season: {season}"
             )
-            print(f"Could not find anime on AniList for title: {title}")
-
-            # Ask if user wants to enter ID manually
-            manual_entry = input("Enter AniList ID manually? (y/n): ").lower().strip()
-            if manual_entry == "y":
-                return self._prompt_for_anilist_id(title)
-
-            # If user declines manual entry, raise error
             raise ValueError(f"Could not find anime on AniList for title: {title}")
 
-        except ValueError:
-            # Re-raise existing ValueError
-            raise
         except Exception as e:
             self.logger.error(f"Error querying AniList: {e}")
-
-            # Ask if user wants to enter ID manually on other errors too
-            manual_entry = (
-                input(f"Error: {str(e)}. Enter AniList ID manually? (y/n): ")
-                .lower()
-                .strip()
-            )
-            if manual_entry == "y":
-                return self._prompt_for_anilist_id(title)
-
             raise ValueError(f"Error querying AniList API: {str(e)}")
 
     def _prompt_for_anilist_id(self, title: str) -> int:
