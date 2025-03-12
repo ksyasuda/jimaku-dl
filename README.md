@@ -1,7 +1,5 @@
 # Jimaku-DL
 
-A tool for downloading and synchronizing anime subtitles from Jimaku.cc.
-
 <div align="center">
 
 <a href="">[![AUR License](https://img.shields.io/aur/license/python-jimaku-dl)](https://aur.archlinux.org/packages/python-jimaku-dl)</a>
@@ -65,6 +63,7 @@ jimaku-dl /path/to/your/anime.mkv --dest-dir /path/to/subtitles
 You'll need a Jimaku API token to use this tool. Set it using one of these methods:
 
 1. Command line option:
+
    ```bash
    jimaku-dl /path/to/anime.mkv --token YOUR_TOKEN_HERE
    ```
