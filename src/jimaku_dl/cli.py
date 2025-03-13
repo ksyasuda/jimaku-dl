@@ -10,7 +10,7 @@ from os import environ, path
 from subprocess import run as subprocess_run
 from typing import Optional, Sequence
 
-from jimaku_dl import __version__  # Import version from package
+from jimaku_dl import __version__
 from jimaku_dl.downloader import FFSUBSYNC_AVAILABLE, JimakuDownloader
 
 

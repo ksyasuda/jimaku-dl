@@ -49,7 +49,7 @@ jobs:
       - name: Determine current version
         id: current_version
         run: |
-          CURRENT_VERSION=$(grep -E "__version__\s*=\s*['\"]([^'\"]+)['\"]" src/jimaku_dl/cli.py | cut -d'"' -f2)
+          CURRENT_VERSION=$(grep -E "__version__\s*=\s*['\"]([^'\"]+)['\"]" src/jimaku_dl/__init__.py | cut -d'"' -f2)
           echo "Current version: $CURRENT_VERSION"
           echo "CURRENT_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
 
@@ -89,12 +89,12 @@ jobs:
 
       - name: Update version in files
         run: |
-          # Update version in cli.py instead of __init__.py
-          sed -i "s/__version__ = \"${{ env.CURRENT_VERSION }}\"/__version__ = \"${{ env.NEW_VERSION }}\"/g" src/jimaku_dl/cli.py
+          if [ -n ${{ env.CURRENT_VERSION }} ] && [ -n ${{ env.NEW_VERSION }} ]; then
+            sed -i "s/__version__ = \"${{ env.CURRENT_VERSION }}\"/__version__ = \"${{ env.NEW_VERSION }}\"/g" src/jimaku_dl/__init__.py
 
-          # Still update setup.cfg if it exists
-          if [ -f "setup.cfg" ]; then
-            sed -i "s/version = ${{ env.CURRENT_VERSION }}/version = ${{ env.NEW_VERSION }}/g" setup.cfg
+            if [ -f "setup.cfg" ]; then
+                sed -i "s/version = ${{ env.CURRENT_VERSION }}/version = ${{ env.NEW_VERSION }}/g" setup.cfg
+            fi
           fi
 
           echo "Updated version to ${{ env.NEW_VERSION }} in code files"
