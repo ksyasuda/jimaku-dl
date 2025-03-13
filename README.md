@@ -1,23 +1,19 @@
 # Jimaku-DL
-
-<div align="center">
-
+  
 <a href="">[![AUR License](https://img.shields.io/aur/license/python-jimaku-dl)](https://aur.archlinux.org/packages/python-jimaku-dl)</a>
 <a href="">[![GitHub Release](https://img.shields.io/github/v/release/ksyasuda/jimaku-dl)](https://github.com/ksyasuda/jimaku-dl)</a>
 <a href="">[![AUR Last Modified](https://img.shields.io/aur/last-modified/python-jimaku-dl)](https://aur.archlinux.org/packages/python-jimaku-dl)</a>
 <a href="">[![codecov](https://codecov.io/gh/ksyasuda/jimaku-dl/graph/badge.svg?token=5S5NRSPVHT)](https://codecov.io/gh/ksyasuda/jimaku-dl)</a>
 
+<div align="center">
+  
 A tool for downloading Japanese subtitles for anime from <a href="https://jimaku.cc" target="_blank" rel="noopener noreferrer">Jimaku</a>
 
-  <!-- <p>
-    <video controls muted src="https://github.com/user-attachments/assets/3723866f-4e7d-4f89-8b55-17f2fb6fa6be"></video>
-  </p> -->
-  <!-- <p align="center">
-    <picture>
-      <source srcset="assets/showcase.webp" type="image/webp">
-      <img src="assets/showcase.gif" alt="Jimaku-DL Demo">
-    </picture>
-  </p> -->
+<p>
+  <video autoplay loop muted playsinline src="https://github.com/user-attachments/assets/6cf63a3e-f9a6-41e3-9351-d37a76d882e9" type="video/mp4">
+  <img src="https://github.com/user-attachments/assets/f65d4e47-59f9-4cd1-be72-46a512af7fe1" alt="Jimaku-DL Demo">
+</p>
+    
 </div>
 
 ## Features
