@@ -1,5 +1,5 @@
 # Jimaku-DL
-  
+
 <a href="">[![AUR License](https://img.shields.io/aur/license/python-jimaku-dl)](https://aur.archlinux.org/packages/python-jimaku-dl)</a>
 <a href="">[![GitHub Release](https://img.shields.io/github/v/release/ksyasuda/jimaku-dl)](https://github.com/ksyasuda/jimaku-dl)</a>
 <a href="">[![AUR Last Modified](https://img.shields.io/aur/last-modified/python-jimaku-dl)](https://aur.archlinux.org/packages/python-jimaku-dl)</a>
@@ -86,7 +86,7 @@ positional arguments:
 
 options:
   -h, --help            Show this help message and exit
-  -v, --version         Show program's version number and exit
+  -v, --version         Show program version number and exit
   -t TOKEN, --token TOKEN
                         Jimaku API token (can also use JIMAKU_API_TOKEN env var)
   -l {DEBUG,INFO,WARNING,ERROR,CRITICAL}, --log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}
