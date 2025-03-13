@@ -298,3 +298,192 @@ class TestEdgeCases:
         filtered = downloader.filter_files_by_episode(files, 10)
         assert len(filtered) == 2
         assert all(file["id"] in [7, 8] for file in filtered)
+
+
+import os
+
+import pytest
+
+from jimaku_dl.downloader import JimakuDownloader
+
+
+@pytest.fixture
+def mock_exists():
+    """Mock os.path.exists to allow fake paths."""
+    with patch("jimaku_dl.downloader.exists") as mock_exists:
+        mock_exists.return_value = True
+        yield mock_exists
+
+
+@pytest.fixture
+def mock_input():
+    """Mock input function to simulate user input."""
+    with patch("builtins.input") as mock_in:
+        mock_in.side_effect = ["Test Anime", "1", "1"]  # title, season, episode
+        yield mock_in
+
+
+@pytest.fixture
+def mock_entry_selection():
+    """Mock entry info for selection."""
+    return {
+        "english_name": "Test Anime",
+        "japanese_name": "テストアニメ",
+        "id": 1,
+        "files": [{"name": "test.srt", "url": "http://test.com/sub.srt"}],
+    }
+
+
+@pytest.fixture
+def base_mocks():
+    """Provide common mocks for downloader tests."""
+    entry = {"id": 1, "english_name": "Test Anime", "japanese_name": "テストアニメ"}
+    file = {"name": "test.srt", "url": "http://test.com/sub.srt"}
+    entry_option = f"1. {entry['english_name']} - {entry['japanese_name']}"
+    file_option = f"1. {file['name']}"
+    return {
+        "entry": entry,
+        "entry_option": entry_option,
+        "file": file,
+        "file_option": file_option,
+    }
+
+
+def test_empty_file_selection_directory(mock_exists, mock_input, base_mocks):
+    """Test handling of empty file selection when processing a directory."""
+    downloader = JimakuDownloader("fake_token")
+
+    # Mock required functions
+    downloader.is_directory_input = lambda x: True
+    downloader.find_anime_title_in_path = lambda x: ("Test Anime", 1, 0)
+    downloader.parse_filename = lambda x: ("Test Anime", 1, 1)
+    downloader.get_entry_files = lambda x: [base_mocks["file"]]
+    downloader.download_file = lambda url, path: path
+
+    # Mock entry selection and mapping
+    def mock_fzf(options, multi=False):
+        if not multi:
+            return base_mocks["entry_option"]
+        return []
+
+    downloader.fzf_menu = mock_fzf
+    downloader.query_jimaku_entries = lambda x: [base_mocks["entry"]]
+
+    result = downloader.download_subtitles("/fake/dir", play=False, anilist_id=1)
+    assert result == []
+
+
+def test_sync_behavior_default(mock_exists, mock_input, base_mocks):
+    """Test sync behavior defaults correctly based on play parameter."""
+    downloader = JimakuDownloader("fake_token")
+
+    # Mock required functions
+    downloader.is_directory_input = lambda x: False
+    downloader.parse_filename = lambda x: ("Test Anime", 1, 1)
+    downloader.get_entry_files = lambda x: [base_mocks["file"]]
+    downloader.download_file = lambda url, path: path
+
+    # Track fzf selections
+    selections = []
+
+    def mock_fzf(options, multi=False):
+        selections.append((options, multi))
+        if not multi:  # Entry selection
+            if any(base_mocks["entry_option"] in opt for opt in options):
+                return base_mocks["entry_option"]
+        # File selection
+        return base_mocks["file_option"]
+
+    downloader.fzf_menu = mock_fzf
+    downloader.query_jimaku_entries = lambda x: [base_mocks["entry"]]
+
+    # Test with play=True (should trigger sync)
+    with patch.object(downloader, "_run_sync_in_thread") as sync_mock:
+        result = downloader.download_subtitles("/fake/video.mkv", play=True)
+        assert sync_mock.called
+        assert len(result) == 1
+
+    # Reset selections
+    selections.clear()
+
+    # Test with play=False (should not trigger sync)
+    with patch.object(downloader, "_run_sync_in_thread") as sync_mock:
+        result = downloader.download_subtitles("/fake/video.mkv", play=False)
+        assert not sync_mock.called
+        assert len(result) == 1
+
+
+def test_single_file_option_no_prompt(mock_exists, mock_input, base_mocks):
+    """Test that single file option is auto-selected without prompting."""
+    downloader = JimakuDownloader("fake_token")
+
+    # Mock required functions
+    downloader.is_directory_input = lambda x: False
+    downloader.parse_filename = lambda x: ("Test Anime", 1, 1)
+    downloader.get_entry_files = lambda x: [base_mocks["file"]]
+    downloader.download_file = lambda url, path: path
+
+    # Track fzf calls
+    fzf_calls = []
+
+    def mock_fzf(options, multi=False):
+        fzf_calls.append((options, multi))
+        if not multi:  # Entry selection
+            if any(base_mocks["entry_option"] in opt for opt in options):
+                return base_mocks["entry_option"]
+        # File selection
+        return base_mocks["file_option"]
+
+    downloader.fzf_menu = mock_fzf
+    downloader.query_jimaku_entries = lambda x: [base_mocks["entry"]]
+
+    result = downloader.download_subtitles("/fake/video.mkv", play=False, anilist_id=1)
+    assert len(result) == 1
+    assert len(fzf_calls) == 2  # One for entry, one for file
+
+
+@pytest.fixture
+def mock_monitor():
+    """Fixture to create a function call monitor."""
+
+    class Monitor:
+        def __init__(self):
+            self.called = False
+            self.call_count = 0
+            self.last_args = None
+
+        def __call__(self, *args, **kwargs):
+            self.called = True
+            self.call_count += 1
+            self.last_args = (args, kwargs)
+            return args[0]  # Return first arg for chaining
+
+    return Monitor()
+
+
+def test_download_multiple_files(mock_exists, mock_monitor):
+    """Test downloading multiple files in directory mode."""
+    downloader = JimakuDownloader("fake_token")
+
+    # Mock methods
+    downloader.download_file = mock_monitor
+    downloader.is_directory_input = lambda x: True
+    downloader.find_anime_title_in_path = lambda x: ("Test Anime", 1, 0)
+    downloader.query_jimaku_entries = lambda x: [{"id": 1}]
+
+    # Mock multiple files
+    files = [
+        {"name": "ep1.srt", "url": "http://test.com/1.srt"},
+        {"name": "ep2.srt", "url": "http://test.com/2.srt"},
+    ]
+    downloader.get_entry_files = lambda x: files
+
+    # Mock user selecting both files
+    downloader.fzf_menu = lambda options, multi: options if multi else options[0]
+
+    # Run download
+    result = downloader.download_subtitles("/fake/dir", play=False, anilist_id=1)
+
+    # Verify both files were downloaded
+    assert mock_monitor.call_count == 2
+    assert len(result) == 2

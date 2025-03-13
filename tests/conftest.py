@@ -2,11 +2,10 @@
 
 import os
 import tempfile
-from unittest.mock import MagicMock
+from contextlib import contextmanager
+from unittest.mock import MagicMock, patch
 
 import pytest
-
-# Define fixtures used across test modules
 
 
 @pytest.fixture
@@ -106,3 +105,56 @@ def sample_anime_directory(temp_dir):
             f.write(b"mock video data")
 
     return anime_dir
+
+
+class MonitorFunction:
+    """Helper class to monitor function calls in tests."""
+
+    def __init__(self):
+        self.called = False
+        self.call_count = 0
+        self.last_args = None
+        self.return_value = None
+
+    def __call__(self, *args, **kwargs):
+        self.called = True
+        self.call_count += 1
+        self.last_args = (args, kwargs)
+        if len(args) > 0:
+            return args[0]  # Return first arg for chaining
+        return self.return_value
+
+
+@pytest.fixture
+def mock_functions(monkeypatch):
+    """Fixture to provide function mocking utilities."""
+
+    @contextmanager
+    def monitor_function(obj, func_name):
+        """Context manager to monitor calls to a function."""
+        monitor = MonitorFunction()
+        original = getattr(obj, func_name, None)
+        monkeypatch.setattr(obj, func_name, monitor)
+        try:
+            yield monitor
+        finally:
+            if original:
+                monkeypatch.setattr(obj, func_name, original)
+
+    return monitor_function
+
+
+@pytest.fixture
+def mock_user_input():
+    """Provide a fixture for mocking user input consistently."""
+    with patch("builtins.input") as mock_input:
+
+        def input_sequence(*responses):
+            mock_input.side_effect = responses
+            return mock_input
+
+        yield input_sequence
+
+
+# Update pytest with the new MonitorFunction
+setattr(pytest, "MonitorFunction", MonitorFunction)

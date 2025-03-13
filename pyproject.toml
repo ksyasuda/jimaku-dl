@@ -24,7 +24,7 @@ dependencies = [
 ]
 
 [project.scripts]
-jimaku-dl = "jimaku_dl.__main__:main"
+jimaku-dl = "jimaku_dl.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/ksyasuda/jimaku-dl"
