@@ -1,12 +1,16 @@
 """Jimaku downloader package."""
 
-from jimaku_dl.compat import windows_socket_compat
-
 from .downloader import JimakuDownloader
 
-# Apply Windows socket compatibility early
-windows_socket_compat()
+# Import and apply Windows socket compatibility early
+try:
+    from jimaku_dl.compat import windows_socket_compat
 
-__version__ = "0.1.3"  # Updated for socket compatibility fixes
+    windows_socket_compat()
+except ImportError:
+    # For backwards compatibility in case compat is not yet available
+    pass
+
+__version__ = "0.1.3"
 
 __all__ = ["JimakuDownloader"]
