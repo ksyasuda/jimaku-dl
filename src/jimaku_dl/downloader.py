@@ -855,13 +855,14 @@ class JimakuDownloader:
             return files
 
     def fzf_menu(
-        self, options: List[str], multi: bool = False, auto_select: bool = True
+        self, options: List[str], multi: bool = False
     ) -> Union[str, List[str], None]:
         """Launch fzf with the provided options for selection."""
         if not options:
             return [] if multi else None
 
-        if len(options) == 1 and auto_select:
+        # Auto-select if there's only one option
+        if len(options) == 1:
             self.logger.debug("Single option available, auto-selecting without menu")
             if multi:
                 return [options[0]]
@@ -1371,9 +1372,7 @@ class JimakuDownloader:
         self.logger.info("Select a subtitle entry using fzf:")
         if len(entry_options) == 1:
             self.logger.info(f"Single entry available: {entry_options[0]}")
-        selected_entry_option = self.fzf_menu(
-            entry_options, multi=False, auto_select=True
-        )
+        selected_entry_option = self.fzf_menu(entry_options, multi=False)
 
         if not selected_entry_option or selected_entry_option not in entry_mapping:
             raise ValueError("No valid entry selected")
@@ -1404,14 +1403,13 @@ class JimakuDownloader:
         )
         if len(file_options) == 1:
             self.logger.info(f"Single file available: {file_options[0]}")
-        selected_files = self.fzf_menu(
-            file_options, multi=is_directory, auto_select=True
-        )
+        selected_files = self.fzf_menu(file_options, multi=is_directory)
 
         if is_directory:
             if not selected_files:
-                raise ValueError("No subtitle files selected")
-            selected_files_list = selected_files
+                selected_files_list = []
+            else:
+                selected_files_list = selected_files
         else:
             if not selected_files:
                 raise ValueError("No subtitle file selected")
