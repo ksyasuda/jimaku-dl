@@ -549,7 +549,7 @@ class JimakuDownloader:
 
             if len(media_list) > 1:
                 self.logger.info(
-                    f"Found {len(media_list)} potential matches, presenting selection menu"
+                    f"Found {len(media_list)} potential matches, presenting menu"
                 )
 
                 try:
@@ -558,7 +558,7 @@ class JimakuDownloader:
                         titles = media.get("title", {})
                         if not isinstance(titles, dict):
                             titles = {}
-                        
+
                         media_id = media.get("id")
                         english = titles.get("english", "")
                         romaji = titles.get("romaji", "")
@@ -569,8 +569,8 @@ class JimakuDownloader:
                         format_type = media.get("format", "")
 
                         # Build display title with fallbacks
-                        display_title = english or romaji or native or f"Unknown Title"
-                        
+                        display_title = english or romaji or native or "Unknown Title"
+
                         # Build the full display string
                         display = f"{media_id} - {display_title}"
                         if year:
@@ -603,7 +603,9 @@ class JimakuDownloader:
                         anilist_id = media_list[0].get("id")
                         self.logger.info(f"Falling back to first result: {anilist_id}")
                         return anilist_id
-                    raise ValueError(f"Could not find anime on AniList for title: {title}")
+                    raise ValueError(
+                        f"Could not find anime on AniList for title: {title}"
+                    )
 
             elif len(media_list) == 1:
                 # Single match, use it directly
@@ -859,7 +861,6 @@ class JimakuDownloader:
         if not options:
             return [] if multi else None
 
-        # If there's only one option and auto_select is True, return it without showing menu
         if len(options) == 1 and auto_select:
             self.logger.debug("Single option available, auto-selecting without menu")
             if multi:
@@ -1370,8 +1371,10 @@ class JimakuDownloader:
         self.logger.info("Select a subtitle entry using fzf:")
         if len(entry_options) == 1:
             self.logger.info(f"Single entry available: {entry_options[0]}")
-        selected_entry_option = self.fzf_menu(entry_options, multi=False, auto_select=True)
-        
+        selected_entry_option = self.fzf_menu(
+            entry_options, multi=False, auto_select=True
+        )
+
         if not selected_entry_option or selected_entry_option not in entry_mapping:
             raise ValueError("No valid entry selected")
 
@@ -1401,7 +1404,9 @@ class JimakuDownloader:
         )
         if len(file_options) == 1:
             self.logger.info(f"Single file available: {file_options[0]}")
-        selected_files = self.fzf_menu(file_options, multi=is_directory, auto_select=True)
+        selected_files = self.fzf_menu(
+            file_options, multi=is_directory, auto_select=True
+        )
 
         if is_directory:
             if not selected_files:

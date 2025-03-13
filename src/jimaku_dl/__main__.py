@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Entry point module for the jimaku-dl package.
-Allows running the package with 'python -m jimaku_dl' or the installed 'jimaku-dl' command.
+Allows running the package with 'python -m jimaku_dl' or just 'jimaku-dl'.
 """
 import sys
 
