@@ -1,87 +1,102 @@
-# Jimaku Downloader
-
-<div align="center">
-
+# Jimaku-DL
+  
 <a href="">[![AUR License](https://img.shields.io/aur/license/python-jimaku-dl)](https://aur.archlinux.org/packages/python-jimaku-dl)</a>
 <a href="">[![GitHub Release](https://img.shields.io/github/v/release/ksyasuda/jimaku-dl)](https://github.com/ksyasuda/jimaku-dl)</a>
 <a href="">[![AUR Last Modified](https://img.shields.io/aur/last-modified/python-jimaku-dl)](https://aur.archlinux.org/packages/python-jimaku-dl)</a>
 <a href="">[![codecov](https://codecov.io/gh/ksyasuda/jimaku-dl/graph/badge.svg?token=5S5NRSPVHT)](https://codecov.io/gh/ksyasuda/jimaku-dl)</a>
 
+<div align="center">
+  
 A tool for downloading Japanese subtitles for anime from <a href="https://jimaku.cc" target="_blank" rel="noopener noreferrer">Jimaku</a>
 
-  <p>
-    <video controls muted src="https://github.com/user-attachments/assets/bdf2bb7d-9b0f-47fd-b7d3-db54a9529133"></video>
-  </p>
+<p>
+  <video autoplay loop muted playsinline src="https://github.com/user-attachments/assets/6cf63a3e-f9a6-41e3-9351-d37a76d882e9" type="video/mp4">
+  <img src="https://github.com/user-attachments/assets/f65d4e47-59f9-4cd1-be72-46a512af7fe1" alt="Jimaku-DL Demo">
+</p>
+   
 </div>
 
 ## Features
 
-- Queries AniList for anime titles
-- Select subtitle entries from Jimaku
-- Download subtitles to a specified directory
-- Launch MPV with the downloaded subtitles
-- Supports both file and directory inputs
-  - Support for downloading multiple subtitle files
+- Download subtitles from Jimaku.cc
+- Automatic subtitle synchronization with video (requires ffsubsync)
+- Playback with MPV player and Japanese audio track selection
+- On-screen notification when subtitle synchronization is complete
+- Background synchronization during playback
+- Cross-platform support (Windows, macOS, Linux)
+- Smart filename and directory parsing for anime detection
+- Cache AniList IDs for faster repeat usage
+- Interactive subtitle selection with fzf
 
 ## Installation
 
-You can install Jimaku Downloader using pip
-
-```sh
+```bash
 pip install jimaku-dl
 ```
 
-### Arch Linux
+### Requirements
 
-Arch Linux users can install
-<a href="https://aur.archlinux.org/packages/python-jimaku-dl" target="_blank">python-jimaku-dl</a>
-from the AUR
-
-```sh
-paru -S python-jimaku-dl
-# or
-yay -S python-jimaku-dl
-```
+- Python 3.8+
+- fzf for interactive selection menus (required)
+- MPV for video playback (optional)
+- ffsubsync for subtitle synchronization (optional)
 
 ## Usage
 
-### Command Line Interface
+```bash
+# Basic usage - Download subtitles for a video file
+jimaku-dl /path/to/your/anime.mkv
 
-The main entry point for Jimaku Downloader is the `jimaku-dl` command. Here are some examples of how to use it:
+# Download subtitles and play video immediately
+jimaku-dl /path/to/your/anime.mkv --play
 
-```sh
-# Download subtitles for a single video file
-jimaku-dl /path/to/video.mkv
+# Download, play, and synchronize subtitles in background
+jimaku-dl /path/to/your/anime.mkv --play --sync
 
-# Download subtitles for a directory
-jimaku-dl /path/to/anime/directory
+# Download subtitles for all episodes in a directory
+jimaku-dl /path/to/your/anime/season-1/
 
-# Specify a custom destination directory
-jimaku-dl /path/to/video.mkv --dest /custom/path
-
-# Launch MPV with the downloaded subtitles
-jimaku-dl /path/to/video.mkv --play
-
-# Specify an AniList ID directly
-jimaku-dl /path/to/video.mkv --anilist-id 123456
-
-# Set the Jimaku API token
-jimaku-dl /path/to/video.mkv --token your_api_token
-
-# Set the logging level
-jimaku-dl /path/to/video.mkv --log-level DEBUG
+# Specify custom destination directory
+jimaku-dl /path/to/your/anime.mkv --dest-dir /path/to/subtitles
 ```
 
-### Python API
+### API Token
 
-You can also use Jimaku Downloader as a Python library:
+You'll need a Jimaku API token to use this tool. Set it using one of these methods:
 
-```python
-from jimaku_dl.downloader import JimakuDownloader
+1. Command line option:
 
-downloader = JimakuDownloader(api_token="your_api_token", log_level="INFO")
-downloaded_files = downloader.download_subtitles("/path/to/video.mkv", dest_dir="/custom/path", play=True)
-print(f"Downloaded files: {downloaded_files}")
+   ```bash
+   jimaku-dl /path/to/anime.mkv --token YOUR_TOKEN_HERE
+   ```
+
+2. Environment variable:
+   ```bash
+   export JIMAKU_API_TOKEN="your-token-here"
+   jimaku-dl /path/to/anime.mkv
+   ```
+
+## Command-Line Options
+
+```bash
+usage: jimaku-dl [options] MEDIA_PATH
+
+positional arguments:
+  MEDIA_PATH            Path to media file or directory
+
+options:
+  -h, --help            Show this help message and exit
+  -v, --version         Show program's version number and exit
+  -t TOKEN, --token TOKEN
+                        Jimaku API token (can also use JIMAKU_API_TOKEN env var)
+  -l {DEBUG,INFO,WARNING,ERROR,CRITICAL}, --log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}
+                        Set logging level
+  -d DEST_DIR, --dest-dir DEST_DIR
+                        Destination directory for subtitles
+  -p, --play           Play media with MPV after download
+  -a ANILIST_ID, --anilist-id ANILIST_ID
+                        AniList ID (skip search)
+  -s, --sync           Sync subtitles with video in background when playing
 ```
 
 ## File Naming
