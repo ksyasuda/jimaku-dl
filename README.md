@@ -13,7 +13,7 @@ A tool for downloading Japanese subtitles for anime from <a href="https://jimaku
   <video autoplay loop muted playsinline src="https://github.com/user-attachments/assets/6cf63a3e-f9a6-41e3-9351-d37a76d882e9" type="video/mp4">
   <img src="https://github.com/user-attachments/assets/f65d4e47-59f9-4cd1-be72-46a512af7fe1" alt="Jimaku-DL Demo">
 </p>
-    
+   
 </div>
 
 ## Features
