@@ -549,38 +549,62 @@ class JimakuDownloader:
 
             if len(media_list) > 1:
                 self.logger.info(
-                    f"Found {len(media_list)} potential matches, "
-                    "presenting selection menu"
+                    f"Found {len(media_list)} potential matches, presenting selection menu"
                 )
 
-                media_list.sort(key=lambda x: x.get("id", 0) or 0, reverse=True)
+                try:
+                    options = []
+                    for media in media_list:
+                        titles = media.get("title", {})
+                        if not isinstance(titles, dict):
+                            titles = {}
+                        
+                        media_id = media.get("id")
+                        english = titles.get("english", "")
+                        romaji = titles.get("romaji", "")
+                        native = titles.get("native", "")
+                        year = media.get("seasonYear", "")
+                        season = media.get("season", "")
+                        episodes = media.get("episodes", "?")
+                        format_type = media.get("format", "")
 
-                options = []
-                for media in media_list:
-                    english = media.get("title", {}).get("english", "")
-                    romaji = media.get("title", {}).get("romaji", "")
-                    native = media.get("title", {}).get("native", "")
-                    year = media.get("seasonYear", "")
-                    season = media.get("season", "").title()
-                    episodes = media.get("episodes", "?")
-                    format_type = media.get("format", "")
+                        # Build display title with fallbacks
+                        display_title = english or romaji or native or f"Unknown Title"
+                        
+                        # Build the full display string
+                        display = f"{media_id} - {display_title}"
+                        if year:
+                            display += f" [{year}]"
+                        if season:
+                            display += f" ({season})"
+                        if native:
+                            display += f" | {native}"
+                        if format_type or episodes:
+                            display += f" | {format_type}, {episodes} eps"
 
-                    display = f"{media['id']} - {english or romaji} [{year}] ({season})"
-                    if native:
-                        display += f" | {native}"
-                    display += f" | {format_type}, {episodes} eps"
+                        options.append(display)
 
-                    options.append(display)
+                    if not options:
+                        raise ValueError("No valid options to display")
 
-                selected = self.fzf_menu(options)
-                if not selected:
-                    self.logger.warning("User cancelled selection")
-                    raise ValueError("Selection cancelled")
+                    selected = self.fzf_menu(options)
+                    if not selected:
+                        raise ValueError("Selection cancelled")
 
-                # Extract the ID from the selected option
-                anilist_id = int(selected.split(" - ")[0].strip())
-                self.logger.info(f"User selected AniList ID: {anilist_id}")
-                return anilist_id
+                    # Extract the ID from the selected option
+                    anilist_id = int(selected.split(" - ")[0].strip())
+                    self.logger.info(f"User selected AniList ID: {anilist_id}")
+                    return anilist_id
+
+                except (ValueError, IndexError, AttributeError) as e:
+                    self.logger.error(f"Error processing selection: {e}")
+                    # If we fail to show the menu, try to use the first result
+                    if media_list[0].get("id"):
+                        anilist_id = media_list[0].get("id")
+                        self.logger.info(f"Falling back to first result: {anilist_id}")
+                        return anilist_id
+                    raise ValueError(f"Could not find anime on AniList for title: {title}")
+
             elif len(media_list) == 1:
                 # Single match, use it directly
                 anilist_id = media_list[0].get("id")
@@ -829,24 +853,19 @@ class JimakuDownloader:
             return files
 
     def fzf_menu(
-        self, options: List[str], multi: bool = False
+        self, options: List[str], multi: bool = False, auto_select: bool = True
     ) -> Union[str, List[str], None]:
-        """
-        Launch fzf with the provided options for selection.
+        """Launch fzf with the provided options for selection."""
+        if not options:
+            return [] if multi else None
 
-        Parameters
-        ----------
-        options : list
-            List of strings to present as options
-        multi : bool, optional
-            Whether to enable multi-select mode (default: False)
+        # If there's only one option and auto_select is True, return it without showing menu
+        if len(options) == 1 and auto_select:
+            self.logger.debug("Single option available, auto-selecting without menu")
+            if multi:
+                return [options[0]]
+            return options[0]
 
-        Returns
-        -------
-        str or list or None
-            If multi=False: Selected option string or None if cancelled
-            If multi=True: List of selected option strings or empty list
-        """
         try:
             fzf_args = ["fzf", "--height=40%", "--border"]
             if multi:
@@ -1349,7 +1368,10 @@ class JimakuDownloader:
         entry_options.sort()
 
         self.logger.info("Select a subtitle entry using fzf:")
-        selected_entry_option = self.fzf_menu(entry_options, multi=False)
+        if len(entry_options) == 1:
+            self.logger.info(f"Single entry available: {entry_options[0]}")
+        selected_entry_option = self.fzf_menu(entry_options, multi=False, auto_select=True)
+        
         if not selected_entry_option or selected_entry_option not in entry_mapping:
             raise ValueError("No valid entry selected")
 
@@ -1377,7 +1399,9 @@ class JimakuDownloader:
         self.logger.info(
             f"Select {'one or more' if is_directory else 'one'} " "subtitle file(s):"
         )
-        selected_files = self.fzf_menu(file_options, multi=is_directory)
+        if len(file_options) == 1:
+            self.logger.info(f"Single file available: {file_options[0]}")
+        selected_files = self.fzf_menu(file_options, multi=is_directory, auto_select=True)
 
         if is_directory:
             if not selected_files:
