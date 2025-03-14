@@ -34,6 +34,16 @@ A tool for downloading Japanese subtitles for anime from <a href="https://jimaku
 pip install jimaku-dl
 ```
 
+### Arch Linux
+
+Arch Linux users can install `python-jimaku-dl` from the AUR
+
+```bash
+paru -S python-jimaku-dl
+# or
+yay -S python-jimaku-dl
+```
+
 ### Requirements
 
 - Python 3.8+
