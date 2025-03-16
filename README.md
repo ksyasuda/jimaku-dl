@@ -10,8 +10,8 @@
 A tool for downloading Japanese subtitles for anime from <a href="https://jimaku.cc" target="_blank" rel="noopener noreferrer">Jimaku</a>
 
 <p>
-  <video autoplay loop muted playsinline src="https://github.com/user-attachments/assets/6cf63a3e-f9a6-41e3-9351-d37a76d882e9" type="video/mp4">
-  <img src="https://github.com/user-attachments/assets/f65d4e47-59f9-4cd1-be72-46a512af7fe1" alt="Jimaku-DL Demo">
+  <video autoplay loop muted playsinline poster="https://github.com/user-attachments/assets/fee7ca19-8a00-4b55-aabf-fbeaca304a0e" src="https://github.com/user-attachments/assets/77cfdd97-597b-4caf-b473-b778df81bc55" type="video/mp4">
+  <img src="https://github.com/user-attachments/assets/39848390-56c3-400e-bd60-26e7e7713bb0" alt="Jimaku-DL Demo">
 </p>
    
 </div>
