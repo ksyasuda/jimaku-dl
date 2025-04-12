@@ -10,6 +10,6 @@ except ImportError:
     # For backwards compatibility in case compat is not yet available
     pass
 
-__version__ = "0.1.4"
+__version__ = "0.1.6"
 
 __all__ = ["JimakuDownloader"]
