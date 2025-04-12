@@ -149,12 +149,6 @@ To contribute to Jimaku Downloader, follow these steps:
    pip install -r requirements_dev.txt
    ```
 
-4. Run the tests:
-
-   ```sh
-   pytest
-   ```
-
 ## License
 
 Jimaku Downloader is licensed under the GPLv3 License. See the [LICENSE](LICENSE) file for more information.
