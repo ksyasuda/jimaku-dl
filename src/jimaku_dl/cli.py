@@ -64,6 +64,12 @@ def parse_args(args: Optional[Sequence[str]] = None) -> argparse.Namespace:
         action="store_true",
         help="Sync subtitles with video in background when playing",
     )
+    parser.add_argument(
+        "-r",
+        "--rename",
+        action="store_true",
+        help="Rename subtitle files with .ja extension to match video filename",
+    )
 
     return parser.parse_args(args)
 
@@ -280,7 +286,11 @@ def main(args: Optional[Sequence[str]] = None) -> int:
     if not api_token:
         api_token = environ.get("JIMAKU_API_TOKEN", "")
 
-    downloader = JimakuDownloader(api_token=api_token, log_level=parsed_args.log_level)
+    downloader = JimakuDownloader(
+        api_token=api_token,
+        log_level=parsed_args.log_level,
+        rename_with_ja_ext=parsed_args.rename,
+    )
 
     try:
         if not path.exists(parsed_args.media_path):

@@ -27,6 +27,7 @@ A tool for downloading Japanese subtitles for anime from <a href="https://jimaku
 - Smart filename and directory parsing for anime detection
 - Cache AniList IDs for faster repeat usage
 - Interactive subtitle selection with fzf
+- Automatic subtitle renaming to match video filenames
 
 ## Installation
 
@@ -62,6 +63,9 @@ jimaku-dl /path/to/your/anime.mkv --play
 
 # Download, play, and synchronize subtitles in background
 jimaku-dl /path/to/your/anime.mkv --play --sync
+
+# Download subtitles and rename to match video filename
+jimaku-dl /path/to/your/anime.mkv --rename
 
 # Download subtitles for all episodes in a directory
 jimaku-dl /path/to/your/anime/season-1/

@@ -41,30 +41,30 @@ class JimakuDownloader:
         api_token: Optional[str] = None,
         log_level: str = "INFO",
         quiet: bool = False,
+        rename_with_ja_ext: bool = False,  # Add new config option
     ):
         """
-        Initialize the JimakuDownloader with API token and logging
+        Initialize the JimakuDownloader.
 
         Parameters
         ----------
         api_token : str, optional
-            Jimaku API token for authentication. If None, will try to get from
-            JIMAKU_API_TOKEN env var
+            API token for Jimaku
         log_level : str, default="INFO"
-            Logging level to use (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+            Logging level
         quiet : bool, default=False
-            If True, suppress MPV output and disable logging
+            Suppress non-error output
+        rename_with_ja_ext : bool, default=False
+            Whether to rename downloaded subtitles to match video name
         """
         self.quiet = quiet
-        if quiet:
-            log_level = "ERROR"
-        self.logger = self._setup_logging(log_level)
-
+        self.rename_with_ja_ext = rename_with_ja_ext  # Store the config option
         self.api_token = api_token or environ.get("JIMAKU_API_TOKEN", "")
         if not self.api_token:
             self.logger.warning(
                 "No API token provided. Will need to be set before downloading."
             )
+        self.logger = self._setup_logging(log_level)
 
     def _setup_logging(self, log_level: str) -> Logger:
         """
@@ -1438,14 +1438,27 @@ class JimakuDownloader:
                 if is_directory:
                     filename = f"{file_info.get('name', 'subtitle.srt')}"
 
+            if self.rename_with_ja_ext:
+                # Get the extension from the original subtitle file
+                sub_ext = splitext(filename)[1]
+                if not is_directory:
+                    # For single file, use the video file name
+                    video_name = splitext(basename(media_path))[0]
+                    filename = f"{video_name}.ja{sub_ext}"
+                else:
+                    # For directory, parse the subtitle filename for episode info
+                    try:
+                        _, sub_season, sub_episode = self.parse_filename(filename)
+                        video_name = basename(media_path)
+                        filename = f"{video_name}.ja{sub_ext}"
+                    except Exception as e:
+                        self.logger.warning(f"Error parsing subtitle filename: {e}")
+
             dest_path = join(dest_dir, filename)
             self.logger.info(f"Downloading '{opt}' to {dest_path}...")
             self.download_file(download_url, dest_path)
             downloaded_files.append(dest_path)
             self.logger.info(f"Subtitle saved to: {dest_path}")
-
-            # Don't sync here - we'll do it in background if needed
-            # This prevents blocking MPV launch
 
         # For directory + play case, use a separate function to make sure
         # the message is exactly right for the test
