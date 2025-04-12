@@ -58,13 +58,15 @@ class JimakuDownloader:
             Whether to rename downloaded subtitles to match video name
         """
         self.quiet = quiet
+        if quiet:
+            log_level = "ERROR"
+        self.logger = self._setup_logging(log_level)
         self.rename_with_ja_ext = rename_with_ja_ext  # Store the config option
         self.api_token = api_token or environ.get("JIMAKU_API_TOKEN", "")
         if not self.api_token:
             self.logger.warning(
                 "No API token provided. Will need to be set before downloading."
             )
-        self.logger = self._setup_logging(log_level)
 
     def _setup_logging(self, log_level: str) -> Logger:
         """

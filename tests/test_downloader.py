@@ -35,12 +35,18 @@ class TestJimakuDownloader:
 
     def test_init(self):
         """Test JimakuDownloader initialization."""
-        downloader = JimakuDownloader(api_token="test_token")
+        downloader = JimakuDownloader(api_token="test_token", rename_with_ja_ext=False)
         assert downloader.api_token == "test_token"
+        assert hasattr(downloader, "logger")
 
-        with patch.dict("os.environ", {"JIMAKU_API_TOKEN": "env_token"}):
+        # Test without token
+        with pytest.warns(Warning):
             downloader = JimakuDownloader()
-            assert downloader.api_token == "env_token"
+            assert downloader.api_token == ""
+
+        # Test log level
+        downloader = JimakuDownloader(api_token="test_token", log_level="DEBUG", rename_with_ja_ext=False)
+        assert downloader.logger.level == logging.DEBUG
 
     def test_parse_directory_name(self):
         """Test extracting show title from directory name."""

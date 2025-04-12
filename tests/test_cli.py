@@ -42,6 +42,7 @@ class TestCli:
             log_level="INFO",
             anilist_id=None,
             sync=False,
+            rename=False,
         )
 
         # Mock both os.path.exists and cli.path.exists since both might be used
@@ -54,14 +55,9 @@ class TestCli:
             result = main()
             assert result == 0
             mock_downloader.assert_called_once_with(
-                api_token="test_token", log_level="INFO"
-            )
-            mock_downloader.return_value.download_subtitles.assert_called_once_with(
-                "/path/to/video.mkv",
-                dest_dir=None,
-                play=False,
-                anilist_id=None,
-                sync=False,
+                api_token="test_token",
+                log_level="INFO",
+                rename_with_ja_ext=False
             )
 
     def test_main_error(self):
@@ -80,6 +76,7 @@ class TestCli:
             log_level="INFO",
             anilist_id=None,
             sync=False,
+            rename=False,
         )
 
         with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), patch(
@@ -110,6 +107,7 @@ class TestCli:
             log_level="INFO",
             anilist_id=None,
             sync=False,
+            rename=False,
         )
 
         with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), patch(
@@ -141,6 +139,7 @@ class TestCli:
             log_level="INFO",
             anilist_id=123456,
             sync=False,
+            rename=False,
         )
 
         # Mock both os.path.exists and cli.path.exists for path check
@@ -178,6 +177,7 @@ class TestCli:
             log_level="INFO",
             anilist_id=None,
             sync=False,
+            rename=False,
         )
 
         # Patch jimaku_dl.cli.parse_args directly
@@ -216,6 +216,7 @@ class TestCli:
             log_level="INFO",
             anilist_id=None,
             sync=False,
+            rename=False,
         )
 
         # Create a more specific mock for subprocess_run that explicitly prevents MPV execution
@@ -271,6 +272,7 @@ class TestCli:
             log_level="INFO",
             anilist_id=None,
             sync=False,
+            rename=False,
         )
 
         # Patch jimaku_dl.cli.parse_args directly
@@ -284,7 +286,9 @@ class TestCli:
 
             assert result == 0
             mock_downloader.assert_called_once_with(
-                api_token="custom_token", log_level="INFO"
+                api_token="custom_token",
+                log_level="INFO",
+                rename_with_ja_ext=False
             )
 
     def test_log_level_arg(self):
@@ -304,6 +308,7 @@ class TestCli:
             log_level="DEBUG",
             anilist_id=None,
             sync=False,
+            rename=False,
         )
 
         # Patch jimaku_dl.cli.parse_args directly
@@ -317,7 +322,9 @@ class TestCli:
 
             assert result == 0
             mock_downloader.assert_called_once_with(
-                api_token="test_token", log_level="DEBUG"
+                api_token="test_token",
+                log_level="DEBUG",
+                rename_with_ja_ext=False
             )
 
     def test_version_arg(self):
@@ -363,6 +370,7 @@ class TestCli:
             log_level="INFO",
             anilist_id=None,
             sync=False,
+            rename=False,
         )
 
         # Create a mock downloader with our safe exception
@@ -409,6 +417,7 @@ class TestCli:
             log_level="DEBUG",
             anilist_id=789,
             sync=False,
+            rename=False,
         )
 
         # Define a mock subprocess_run implementation that doesn't actually run MPV
@@ -434,7 +443,9 @@ class TestCli:
 
             assert result == 0
             mock_downloader.assert_called_once_with(
-                api_token="short_token", log_level="DEBUG"
+                api_token="short_token",
+                log_level="DEBUG",
+                rename_with_ja_ext=False
             )
             mock_downloader.return_value.download_subtitles.assert_called_once_with(
                 "/path/to/video.mkv",
@@ -467,6 +478,7 @@ class TestCli:
             log_level="INFO",
             anilist_id=None,
             sync=True,
+            rename=False,
         )
 
         with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), patch(
@@ -510,6 +522,7 @@ class TestCli:
             log_level="INFO",
             anilist_id=None,
             sync=False,
+            rename=False,
         )
 
         with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), patch(
@@ -540,6 +553,7 @@ class TestCli:
             log_level="INFO",
             anilist_id=None,
             sync=False,
+            rename=False,
         )
 
         with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), patch(
@@ -573,6 +587,7 @@ class TestCli:
             log_level="INFO",
             anilist_id=None,
             sync=False,
+            rename=False,
         )
 
         with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), patch(
@@ -601,6 +616,7 @@ class TestCli:
             log_level="INFO",
             anilist_id=None,
             sync=False,
+            rename=False,
         )
 
         with patch("jimaku_dl.cli.JimakuDownloader", MagicMock()), patch(
@@ -633,6 +649,7 @@ class TestCli:
             log_level="INFO",
             anilist_id=None,
             sync=True,
+            rename=False,
         )
 
         with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), patch(
@@ -863,6 +880,7 @@ class TestParseArgs:
                 "--sync",
                 "--anilist-id",
                 "12345",
+                "--rename",
             ]
         )
 
@@ -873,6 +891,7 @@ class TestParseArgs:
         assert args.play is True
         assert args.sync is True
         assert args.anilist_id == 12345
+        assert args.rename is True
 
     def test_short_options(self):
         """Test parsing short form options."""
@@ -889,6 +908,7 @@ class TestParseArgs:
                 "-s",
                 "-a",
                 "12345",
+                "-r",
             ]
         )
 
@@ -899,6 +919,7 @@ class TestParseArgs:
         assert args.play is True
         assert args.sync is True
         assert args.anilist_id == 12345
+        assert args.rename is True
 
 
 class TestSyncThread:
@@ -1014,32 +1035,25 @@ class TestCliEdgeCases:
     """Tests for edge cases in CLI handling."""
 
     def test_main_with_token_env_var(self):
-        """Test main function with token from environment variable."""
+        """Test main function using token from environment variable."""
         mock_downloader = MagicMock()
-        mock_downloader.return_value.download_subtitles.return_value = [
-            "/path/to/subtitle.srt"
-        ]
-
-        mock_args = MagicMock(
-            media_path="/path/to/video.mkv",
-            dest_dir=None,
-            play=False,
-            token=None,  # No token provided in args
-            log_level="INFO",
-            anilist_id=None,
-            sync=False,
-        )
+        mock_environ = {"JIMAKU_API_TOKEN": "env_token"}
 
         with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), patch(
-            "jimaku_dl.cli.parse_args", return_value=mock_args
-        ), patch("os.path.exists", return_value=True), patch(
-            "jimaku_dl.cli.environ.get", return_value="env_token"
-        ):  # Token from env
+            "jimaku_dl.cli.environ", mock_environ
+        ), patch("jimaku_dl.cli.path") as mock_path:
+            mock_path.exists.return_value = True
+            mock_downloader.return_value.download_subtitles.return_value = ["sub.srt"]
+            mock_path.isdir.return_value = False
 
-            result = main()
+            test_args = ["test.mkv"]
+            result = main(test_args)
+
             assert result == 0
             mock_downloader.assert_called_once_with(
-                api_token="env_token", log_level="INFO"
+                api_token="env_token",
+                log_level="INFO",
+                rename_with_ja_ext=False
             )
 
     def test_main_with_no_arguments_provided(self):
@@ -1067,6 +1081,7 @@ class TestCliEdgeCases:
             log_level="INFO",
             anilist_id=None,
             sync=True,
+            rename=False,
         )
 
         with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), patch(
@@ -1077,6 +1092,12 @@ class TestCliEdgeCases:
 
             result = main()
             assert result == 0
+            # Verify downloader was initialized correctly
+            mock_downloader.assert_called_once_with(
+                api_token="test_token",
+                log_level="INFO",
+                rename_with_ja_ext=False
+            )
             # Verify download was called with sync=True
             mock_downloader.return_value.download_subtitles.assert_called_once_with(
                 "/path/to/video.mkv",
@@ -1102,6 +1123,7 @@ class TestCliEdgeCases:
             log_level="INFO",
             anilist_id=None,
             sync=True,
+            rename=False,
         )
 
         with patch("jimaku_dl.cli.JimakuDownloader", mock_downloader), patch(
